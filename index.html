@@ -11,6 +11,11 @@
 
 <body>
     <div id="header"></div>
+    <script>
+        fetch("header.html")
+            .then(response => response.text())
+            .then(data => document.getElementById("header").innerHTML = data);
+    </script>
 
     <div class="hero">
         <h2>Welcome to My Homepage</h2>
@@ -36,11 +41,7 @@
         <p>&copy; 2025 Ronald Zhang</p>
     </footer>
 
-    <script>
-        fetch("header.html")
-            .then(response => response.text())
-            .then(data => document.getElementById("header").innerHTML = data);
-    </script>
+    
 </body>
 
 </html>
