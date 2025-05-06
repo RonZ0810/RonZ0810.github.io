@@ -40,6 +40,7 @@ nav ul li a {
 
 /* Hover effect */
 nav ul li a:hover {
+    background-color: #0033f6;
     filter: brightness(1.5);    /* Slight visual "pop" */
 }
 
