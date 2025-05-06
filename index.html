@@ -5,97 +5,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Personal Website</title>
-    <style>
-        /* Global Styles */
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            color: #333;
-        }
-
-        a {
-            color: #001f3f;
-            text-decoration: none;
-        }
-
-        /* Header & Navigation */
-        header {
-            background-color: #001f3f;
-            color: white;
-            padding: 20px 0;
-            text-align: center;
-        }
-
-        nav ul {
-            list-style: none;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            gap: 30px;
-        }
-
-        nav ul li a {
-            color: white;
-            font-weight: bold;
-        }
-
-        /* Hero Section */
-        .hero {
-            background-color: #003366;
-            color: white;
-            padding: 100px 20px;
-            text-align: center;
-        }
-
-        .hero h2 {
-            margin: 0 0 10px;
-            font-size: 2.5rem;
-        }
-
-        .hero p {
-            font-size: 1.2rem;
-        }
-
-        /* Content Sections */
-        .section {
-            padding: 60px 20px;
-            max-width: 800px;
-            margin: 0 auto;
-        }
-
-        .section h2 {
-            color: #001f3f;
-            margin-bottom: 20px;
-        }
-
-        .section p {
-            line-height: 1.6;
-        }
-
-        /* Footer */
-        footer {
-            background-color: #001f3f;
-            color: white;
-            text-align: center;
-            padding: 20px 0;
-        }
-    </style>
+    <link rel="stylesheet" href="index.css">
+    
 </head>
 
 <body>
-    <header>
-        <h1>Ronald Zhang</h1>
-        <nav>
-            <ul>
-                <li><a href="#">Home</a></li>
-                <li><a href="#about">About</a></li>
-                <li><a href="#projects">Projects</a></li>
-                <li><a href="#contact">Contact</a></li>
-            </ul>
-        </nav>
-    </header>
+    <div id="header"></div>
 
     <div class="hero">
         <h2>Welcome to My Homepage</h2>
@@ -118,8 +33,14 @@
     </section>
 
     <footer>
-        <p>&copy; 2025 Your Name</p>
+        <p>&copy; 2025 Ronald Zhang</p>
     </footer>
+
+    <script>
+        fetch("header.html")
+            .then(response => response.text())
+            .then(data => document.getElementById("header").innerHTML = data);
+    </script>
 </body>
 
 </html>
