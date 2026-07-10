@@ -1,79 +1,113 @@
-<!-- index.html -->
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>My Portfolio</title>
-  <link rel="stylesheet" href="styles.css" />
-</head>
-<body>
-  <!-- Sidebar -->
-  <div id="sidebar" class="sidebar">
-    <h2>Ronald</h2>
-    <nav>
-      <a href="#about">About</a>
-      <a href="#projects">Projects</a>
-      <a href="#contact">Contact</a>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Ronald's personal portfolio, arranged as an interactive study." data-route-meta />
+    <link rel="canonical" href="https://ronz0810.github.io/" data-route-meta />
+    <meta property="og:title" content="Ronald — Personal Portfolio" data-route-meta />
+    <meta property="og:description" content="An interactive personal study with work, education, and hobbies." data-route-meta />
+    <meta property="og:type" content="website" data-route-meta />
+    <meta property="og:url" content="https://ronz0810.github.io/" data-route-meta />
+    <meta property="og:image" content="https://ronz0810.github.io/social-card.svg" data-route-meta />
+    <title>Ronald — Personal Portfolio</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body data-scene="home" data-route="home">
+    <a class="skip-link" href="#page-content">Skip to content</a>
+    <div class="scene-layer" data-study-scene aria-hidden="true"></div>
+
+    <header class="site-header" id="site-header">
+      <a class="brand" href="/" data-route aria-label="Ronald home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>Ronald</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="/" data-route aria-current="page">Home</a>
+        <a href="/about/" data-route>About</a>
+        <a href="/projects/" data-route>Projects</a>
+        <a href="/experience/" data-route>Experience</a>
+        <a href="/education/" data-route>Education</a>
+        <a href="/hobbies/" data-route>Hobbies</a>
+      </nav>
+      <button class="contact-trigger" type="button" data-contact-open>Contact</button>
+    </header>
+
+    <div class="scene-status" data-scene-status aria-live="polite">Rendering study…</div>
+    <button class="motion-control" type="button" data-skip-motion>Skip motion</button>
+
+    <nav class="hotspot-layer" id="hotspot-layer" aria-label="Study destinations">
+      <a class="scene-hotspot" href="/" data-route data-hotspot="home" aria-current="page">Home</a>
+      <a class="scene-hotspot" href="/about/" data-route data-hotspot="about">About</a>
+      <a class="scene-hotspot" href="/projects/" data-route data-hotspot="projects">Projects</a>
+      <a class="scene-hotspot" href="/experience/" data-route data-hotspot="experience">Experience</a>
+      <a class="scene-hotspot" href="/education/" data-route data-hotspot="education">Education</a>
+      <a class="scene-hotspot" href="/hobbies/" data-route data-hotspot="hobbies">Hobbies</a>
     </nav>
-  </div>
 
-  <!-- Header -->
-  <header class="header">
-    <h1>Portfolio</h1>
-    <button id="menuBtn" class="menu-btn">☰</button>
-  </header>
-
-  <!-- Main Content -->
-  <main class="main">
-    <!-- Hero Section -->
-    <section class="hero">
-      <h1>Hi 👋</h1>
-      <div class="hero-buttons">
-        <a href="#projects" class="btn">View Projects</a>
-        <a href="#contact" class="btn outline">Contact Me</a>
+    <main id="page-content" tabindex="-1">
+      <div class="page-layout">
+        <section class="page-intro">
+          <p class="page-kicker">Personal portfolio</p>
+          <h1>A study built around the work and the person behind it.</h1>
+          <p class="placeholder">Replace this introduction with a concise welcome, current focus, and the kind of conversations you hope this portfolio starts.</p>
+        </section>
+        <aside class="scene-note">
+          <strong>How to explore</strong>
+          <p>Choose a label in the room, select an object in the scene, or use the navigation above. The reading view always works even if the 3D study cannot load.</p>
+        </aside>
       </div>
-    </section>
 
-    <!-- About Section -->
-    <section id="about" class="section">
-      <h2>About Me</h2>
-      <p> (fill soon)</p>
-    </section>
-
-    <!-- Projects Section -->
-    <section id="projects" class="section">
-      <h2>Projects</h2>
-      <div class="projects">
-        <div class="card">
-          <h3>Proj #1</h3>
-          <p>Ehhh</p>
-          <a href="#">Learn More →</a>
+      <section class="content-section">
+        <h2>Start anywhere</h2>
+        <div class="split-content">
+          <ul class="stacked-list">
+            <li>
+              <div class="entry-line"><strong>Résumé board</strong><span>About</span></div>
+              <p>Short notes, current interests, and the context behind this portfolio.</p>
+              <a class="arrow-link" href="/about/" data-route>Open the board &rarr;</a>
+            </li>
+            <li>
+              <div class="entry-line"><strong>Prototype workbench</strong><span>Projects</span></div>
+              <p>Three editable case-study routes, ready for real work and outcomes.</p>
+              <a class="arrow-link" href="/projects/" data-route>Visit the workbench &rarr;</a>
+            </li>
+            <li>
+              <div class="entry-line"><strong>Courtyard</strong><span>Education</span></div>
+              <p>Each school opens as its own static vignette, rather than a résumé line item.</p>
+              <a class="arrow-link" href="/education/" data-route>Walk outside &rarr;</a>
+            </li>
+          </ul>
+          <aside class="detail-panel">
+            <h2>Editing this portfolio</h2>
+            <p>Every page contains direct HTML placeholders. Replace only the marked copy, titles, links, and media areas; no credentials or achievements are pre-filled.</p>
+          </aside>
         </div>
-        <div class="card">
-          <h3>Proj 2</h3>
-          <p>ooof</p>
-          <a href="#">Learn More →</a>
+      </section>
+    </main>
+
+    <footer class="site-footer" id="site-footer">
+      <span>© 2026 Ronald</span>
+      <span>Original procedural study assets. No tracking or audio.</span>
+    </footer>
+
+    <dialog class="contact-dialog" id="contact-dialog" aria-labelledby="contact-title">
+      <div class="dialog-content">
+        <div class="dialog-header">
+          <h2 id="contact-title">Get in touch</h2>
+          <button class="dialog-close" type="button" data-contact-close>Close</button>
+        </div>
+        <p class="placeholder">Replace these contact destinations before publishing.</p>
+        <div class="contact-links">
+          <a href="mailto:replace-with-your-email@example.com">Email <span>replace address</span></a>
+          <a href="https://github.com/RonZ0810" target="_blank" rel="noreferrer">GitHub <span>RonZ0810</span></a>
+          <a href="https://www.linkedin.com/in/replace-me/" target="_blank" rel="noreferrer">LinkedIn <span>replace profile</span></a>
         </div>
       </div>
-    </section>
+    </dialog>
 
-    <!-- Contact Section -->
-    <section id="contact" class="section">
-      <h2>Contact Me</h2>
-      <p>I'm always open to connecting. Feel free to reach out!</p>
-      <div class="contact-links">
-        <a href="mailto:example@email.com">📧</a>
-        <a href="https://github.com/yourusername">🐙</a>
-        <a href="https://linkedin.com/in/yourusername">💼</a>
-      </div>
-    </section>
-
-    <!-- Footer -->
-    <footer class="footer">© 2025 Ronald</footer>
-  </main>
-
-  <script src="script.js"></script>
-</body>
+    <div class="route-announcer" data-route-announcer aria-live="polite" aria-atomic="true"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
 </html>
-

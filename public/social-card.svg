@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Ronald personal portfolio">
+  <rect width="1200" height="630" fill="#f2eadc"/>
+  <rect x="0" y="438" width="1200" height="192" fill="#5d3b28"/>
+  <rect x="742" y="96" width="278" height="250" fill="#d8cdbd" stroke="#3d281d" stroke-width="18"/>
+  <rect x="766" y="122" width="230" height="202" fill="#825b3d"/>
+  <rect x="828" y="160" width="36" height="164" fill="#3d281d"/>
+  <rect x="900" y="134" width="44" height="190" fill="#3d281d"/>
+  <rect x="72" y="354" width="484" height="30" fill="#3d281d"/>
+  <rect x="104" y="384" width="26" height="132" fill="#3d281d"/>
+  <rect x="492" y="384" width="26" height="132" fill="#3d281d"/>
+  <rect x="120" y="178" width="290" height="144" fill="#b65d34" stroke="#3d281d" stroke-width="14"/>
+  <rect x="146" y="202" width="104" height="96" fill="#f2eadc"/>
+  <rect x="274" y="202" width="104" height="96" fill="#f2eadc"/>
+  <circle cx="256" cy="330" r="40" fill="#a78252"/>
+  <text x="72" y="96" fill="#29231d" font-family="Outfit, sans-serif" font-size="39" font-weight="650">RONALD</text>
+  <text x="72" y="142" fill="#665c51" font-family="Outfit, sans-serif" font-size="28">A PERSONAL STUDY</text>
+</svg>
