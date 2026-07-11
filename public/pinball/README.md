@@ -16,8 +16,10 @@ FLIPSTRIKE is a portrait-first pinball action roguelike implemented from the pro
 
 - PixiJS WebGL presentation and Planck.js fixed-step physics at 120 Hz
 - Motorized revolute-joint flippers: contact speed scales with distance from the hinge, producing soft near-pivot taps and powerful tip shots
+- Collision-backed lower aprons connect to both flipper hinges and feed a non-rebounding central drain
 - Physics-driven flippers, charged launch, multiball, nudge upgrades, bumpers, and direct-impact combat
 - Drain-triggered attack/defense rhythm: defense begins only after every active ball drains
+- The level timer runs only while a launched ball is active or during the defense phase; plunger and relaunch setup are timer-safe
 - Three-card XP drafts, stack limits, rarity weights, abilities, consumables, rerolls, and level-local builds
 - Keyboard, pointer-drag, and touch controls in a responsive 9:16 frame
 - Versioned browser progress plus one-use IndexedDB suspend saves

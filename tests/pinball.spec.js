@@ -30,8 +30,19 @@ test('full campaign content validates and level one starts cleanly', async ({ pa
   expect(paddles).toHaveLength(2);
   expect(paddles.every((polygon) => polygon.length === 8 && polygon.every(Number.isFinite))).toBe(true);
   const rails = await page.evaluate(() => FLIPSTRIKE.walls.map((body) => body.getUserData().line));
-  expect(rails).toHaveLength(8);
+  expect(rails).toHaveLength(4);
   expect(rails.every((line) => line.length === 4 && line.every(Number.isFinite))).toBe(true);
+  const lowerPlayfield = await page.evaluate(() => ({
+    aprons: FLIPSTRIKE.aprons.map((body) => body.getUserData().points),
+    pivots: FLIPSTRIKE.flippers.slice(0, 2).map((body) => body.getUserData().pivot),
+    drainSensor: FLIPSTRIKE.drain.getFixtureList().isSensor(),
+    drainRect: FLIPSTRIKE.drain.getUserData().rect,
+  }));
+  expect(lowerPlayfield.aprons).toHaveLength(2);
+  expect(lowerPlayfield.drainSensor).toBe(true);
+  expect(lowerPlayfield.drainRect).toEqual([158, 1138, 404, 24]);
+  expect(lowerPlayfield.pivots[0]).toEqual({ x: 158 / 60, y: 1090 / 60 });
+  expect(lowerPlayfield.pivots[1]).toEqual({ x: 562 / 60, y: 1090 / 60 });
   const flipperPhysics = await page.evaluate(() => {
     const body = FLIPSTRIKE.flippers[0], data = body.getUserData();
     body.setAngularVelocity(-12);
@@ -78,11 +89,56 @@ test('draining the last active ball consumes one ball and starts defense', async
     for (const ball of FLIPSTRIKE.balls) {
       ball.getUserData().launched = true;
       ball.setGravityScale(1);
-      ball.setTransform(planck.Vec2(6, 24), 0);
+      ball.setTransform(planck.Vec2(6, 1120 / 60), 0);
+      ball.setLinearVelocity(planck.Vec2(0, 8));
     }
   });
   await expect(page.locator('#phase')).toContainText('DODGE');
   await expect(page.locator('#balls')).toHaveText('BALLS 4');
+});
+
+test('central drain waits for every active multiball before defense', async ({ page }) => {
+  await page.goto('/pinball/');
+  await page.getByRole('button', { name: /Campaign/ }).click();
+  await page.locator('[data-level="1"]').click();
+  await page.evaluate(() => {
+    const first = FLIPSTRIKE.balls[0];
+    first.getUserData().launched = true; first.setGravityScale(1); first.setTransform(planck.Vec2(6, 1120 / 60), 0); first.setLinearVelocity(planck.Vec2(0, 8));
+    const second = FLIPSTRIKE.spawnBall({ p: { x: 5, y: 10 }, v: { x: 0, y: 0 }, launched: true }); second.setGravityScale(1);
+  });
+  await expect.poll(() => page.evaluate(() => FLIPSTRIKE.balls.length)).toBe(1);
+  expect(await page.evaluate(() => ({ phase: FLIPSTRIKE.phase, budget: FLIPSTRIKE.run.balls }))).toEqual({ phase: 'attack', budget: 5 });
+  await page.evaluate(() => { const ball = FLIPSTRIKE.balls[0]; ball.setTransform(planck.Vec2(6, 1120 / 60), 0); ball.setLinearVelocity(planck.Vec2(0, 8)); });
+  await expect(page.locator('#phase')).toContainText('DODGE');
+  await expect(page.locator('#balls')).toHaveText('BALLS 4');
+});
+
+test('main timer runs only for launched balls and defense', async ({ page }) => {
+  await page.goto('/pinball/');
+  await page.getByRole('button', { name: /Campaign/ }).click();
+  await page.locator('[data-level="1"]').click();
+  const initial = await page.evaluate(() => FLIPSTRIKE.run.time);
+  await page.waitForTimeout(350);
+  expect(Math.abs(await page.evaluate(() => FLIPSTRIKE.run.time) - initial)).toBeLessThan(.03);
+
+  await page.keyboard.down('Space'); await page.waitForTimeout(80); await page.keyboard.up('Space'); await page.waitForTimeout(350);
+  expect(await page.evaluate(() => FLIPSTRIKE.run.time)).toBeLessThan(initial - .2);
+
+  await page.evaluate(() => { const ball = FLIPSTRIKE.balls[0]; ball.setTransform(planck.Vec2(6, 1120 / 60), 0); ball.setLinearVelocity(planck.Vec2(0, 8)); });
+  await expect(page.locator('#phase')).toContainText('DODGE');
+  const defenseStart = await page.evaluate(() => FLIPSTRIKE.run.time);
+  await page.waitForTimeout(250);
+  expect(await page.evaluate(() => FLIPSTRIKE.run.time)).toBeLessThan(defenseStart - .15);
+
+  const beforePenalty = await page.evaluate(() => { FLIPSTRIKE.projectiles = [{ x: FLIPSTRIKE.run.carriageX, y: 1080, vx: 0, vy: 0, age: 0, hit: false, penalty: 2, shape: 'aim' }]; FLIPSTRIKE.run.defenseInvulnerable = 0; return FLIPSTRIKE.run.time; });
+  await page.waitForTimeout(80);
+  expect(await page.evaluate(() => FLIPSTRIKE.run.time)).toBeLessThan(beforePenalty - 2);
+
+  await page.evaluate(() => { FLIPSTRIKE.run.defenseTime = .01; FLIPSTRIKE.projectiles = []; });
+  await expect(page.locator('#phase')).toContainText('PLUNGER');
+  const relaunch = await page.evaluate(() => FLIPSTRIKE.run.time);
+  await page.waitForTimeout(300);
+  expect(Math.abs(await page.evaluate(() => FLIPSTRIKE.run.time) - relaunch)).toBeLessThan(.03);
 });
 
 test('XP threshold pauses play for a three-card draft', async ({ page }) => {

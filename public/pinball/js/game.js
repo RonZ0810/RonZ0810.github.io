@@ -41,7 +41,7 @@
   class GameDirector {
     constructor() {
       this.audio = new AudioSystem(); this.saveService = new S.SaveService(); this.phase = "menu"; this.running = false; this.world = null; this.run = null;
-      this.balls = []; this.enemies = []; this.flippers = []; this.bumpers = []; this.walls = []; this.projectiles = []; this.particles = []; this.floaters = [];
+      this.balls = []; this.enemies = []; this.flippers = []; this.bumpers = []; this.walls = []; this.aprons = []; this.drain = null; this.projectiles = []; this.particles = []; this.floaters = [];
       this.keys = { left: false, right: false }; this.touch = { left: false, right: false }; this.dragX = null; this.accumulator = 0; this.last = performance.now(); this.hitCooldown = new Map();
       this.bindInput(); this.menu(); app.ticker.add((ticker) => this.frame(ticker.deltaMS / 1000));
     }
@@ -78,9 +78,12 @@
     }
     levelSpec() { return D.LEVELS[Math.min(100, this.run.level - 1)]; }
     createWorld() {
-      this.world = new P.World({ gravity: P.Vec2(0, 20) }); this.balls = []; this.enemies = []; this.flippers = []; this.flipperJoints = []; this.bumpers = []; this.walls = []; this.hitCooldown.clear(); this.flipperGround = this.world.createBody();
+      this.world = new P.World({ gravity: P.Vec2(0, 20) }); this.balls = []; this.enemies = []; this.flippers = []; this.flipperJoints = []; this.bumpers = []; this.walls = []; this.aprons = []; this.drain = null; this.hitCooldown.clear(); this.flipperGround = this.world.createBody();
       const edge = (x1, y1, x2, y2, tag = "wall") => { const body = this.world.createBody(); body.setUserData({ type: tag, line: [x1, y1, x2, y2] }); body.createFixture(P.Edge(P.Vec2(x1 / SCALE, y1 / SCALE), P.Vec2(x2 / SCALE, y2 / SCALE)), { friction: .05, restitution: .62 }); this.walls.push(body); return body; };
-      edge(42, 142, 42, 1165); edge(678, 142, 678, 1165); edge(42, 142, 160, 76); edge(678, 142, 560, 76); edge(42, 1165, 238, 1245); edge(678, 1165, 482, 1245); edge(238, 1245, 290, 1265); edge(482, 1245, 430, 1265);
+      const apron = (points, side) => { const body = this.world.createBody(); body.setUserData({ type: "apron", points, side }); body.createFixture(P.Polygon(points.map(([x, y]) => P.Vec2(x / SCALE, y / SCALE))), { friction: .18, restitution: .25 }); this.aprons.push(body); return body; };
+      edge(42, 142, 42, 1165); edge(678, 142, 678, 1165); edge(42, 142, 160, 76); edge(678, 142, 560, 76);
+      apron([[42, 1018], [158, 1062], [158, 1122], [42, 1165]], "left"); apron([[678, 1018], [678, 1165], [562, 1122], [562, 1062]], "right");
+      this.drain = this.world.createBody({ position: P.Vec2(360 / SCALE, 1148 / SCALE) }); this.drain.setUserData({ type: "drain", rect: [158, 1138, 404, 24] }); this.drain.createFixture(P.Box(202 / SCALE, 12 / SCALE), { isSensor: true });
       [[180, 520, 34], [360, 445, 38], [540, 520, 34]].forEach(([x, y, radius], i) => { const body = this.world.createBody({ position: P.Vec2(x / SCALE, y / SCALE) }); body.setUserData({ type: "bumper", index: i, pulse: 0 }); body.createFixture(P.Circle(radius / SCALE), { restitution: 1.4 }); this.bumpers.push(body); });
       this.flippers = [this.makeFlipper(158, 1090, false), this.makeFlipper(562, 1090, true)];
       if (this.run.cards["flipper-05"]) this.flippers.push(this.makeFlipper(620, 770, true, .7));
@@ -105,9 +108,9 @@
         body.createFixture(P.Circle((def.radius || 58) / SCALE), { density: 3, restitution: .82, friction: .05 }); this.enemies.push(body);
       });
     }
-    prepareBall() { if (!this.running || this.phase !== "attack") return; this.spawnBall({ p: { x: 636 / SCALE, y: 1035 / SCALE }, v: { x: 0, y: 0 }, launched: false }); this.run.plunger = 18; }
+    prepareBall() { if (!this.running || this.phase !== "attack") return; this.spawnBall({ p: { x: 646 / SCALE, y: 970 / SCALE }, v: { x: 0, y: 0 }, launched: false }); this.run.plunger = 18; }
     spawnBall(saved = null) {
-      const radius = 14 * (1 + this.effectCount("size") * .08), body = this.world.createDynamicBody({ position: P.Vec2(saved?.p.x || 636 / SCALE, saved?.p.y || 1035 / SCALE), bullet: true, linearDamping: .025, gravityScale: saved?.launched ? 1 : 0 });
+      const radius = 14 * (1 + this.effectCount("size") * .08), body = this.world.createDynamicBody({ position: P.Vec2(saved?.p.x || 646 / SCALE, saved?.p.y || 970 / SCALE), bullet: true, linearDamping: .025, gravityScale: saved?.launched ? 1 : 0 });
       body.setUserData({ type: "ball", launched: !!saved?.launched, lastHit: null, saved: false }); body.createFixture(P.Circle(radius / SCALE), { density: 1.2, restitution: .55, friction: .04 }); if (saved?.v) body.setLinearVelocity(P.Vec2(saved.v.x, saved.v.y)); this.balls.push(body); return body;
     }
     releasePlunger() {
@@ -119,6 +122,7 @@
       const a = contact.getFixtureA().getBody(), b = contact.getFixtureB().getBody(), ua = a.getUserData() || {}, ub = b.getUserData() || {};
       const ball = ua.type === "ball" ? a : ub.type === "ball" ? b : null, other = ball === a ? b : a, data = other?.getUserData?.() || {};
       if (!ball || !ball.getUserData().launched) return;
+      if (data.type === "drain") { ball.getUserData().drained = true; return; }
       if (data.type === "enemy") this.hitEnemy(ball, other);
       if (data.type === "bumper") { data.pulse = 1; this.audio.tone(340, .05); this.addXp(2 + this.effectCount("bumperDamage") * 2); if (this.effectCount("bumperDamage")) this.enemies.forEach((enemy) => this.damageEnemy(enemy, 2 * this.effectCount("bumperDamage"), false)); }
       if (data.type === "flipper") this.audio.tone(180, .035, .025);
@@ -169,9 +173,11 @@
       if (card.effect === "timeRefill") this.run.time += 20; this.run.draftCount++; this.run.pendingDraft = false; this.phase = "attack"; overlay.innerHTML = ""; this.running = true; this.toast(card.name);
     }
     reroll() { if (!this.run.rerolls) return; this.run.rerolls--; this.showDraft(); }
+    isMainTimerActive() { return this.phase === "defense" || (this.phase === "attack" && this.balls.some((body) => body.getUserData().launched && !body.getUserData().drained)); }
     update(dt) {
-      if (!this.running || !this.run) return; this.run.time -= dt; if (this.run.time <= 0) return this.fail("TIME EXPIRED");
+      if (!this.running || !this.run) return; if (this.isMainTimerActive()) this.run.time -= dt; if (this.run.time <= 0) return this.fail("TIME EXPIRED");
       if (this.phase === "attack") this.updateAttack(dt); else if (this.phase === "defense") this.updateDefense(dt);
+      if (this.run.time <= 0) return this.fail("TIME EXPIRED");
       this.run.abilityCooldown = Math.max(0, (this.run.abilityCooldown || 0) - dt);
       this.particles.forEach((p) => { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; }); this.particles = this.particles.filter((p) => p.life > 0);
       this.floaters.forEach((p) => { p.y -= 38 * dt; p.life -= dt; p.label.x = p.x; p.label.y = p.y; p.label.alpha = clamp(p.life, 0, 1); if (p.life <= 0) p.label.destroy(); }); this.floaters = this.floaters.filter((p) => p.life > 0); this.updateHud();
@@ -182,7 +188,7 @@
       if (this.run.plungerHeld) this.run.plunger = clamp((this.run.plunger || 18) + dt * 70, 18, 100);
       this.enemies.forEach((body, i) => { const data = body.getUserData(), def = D.enemyById[data.id], pos = body.getPosition(); data.t += dt; data.flash = Math.max(0, data.flash - dt); const anchorX = (160 + (i % 4) * 135) / SCALE, targetX = anchorX + Math.sin(data.t * (def.speed || 25) / 22) * (38 + def.tier * 2) / SCALE; body.setLinearVelocity(P.Vec2((targetX - pos.x) * 2.2, Math.cos(data.t * .8) * .12)); });
       this.world.step(STEP); this.balls.forEach((body) => { const velocity = body.getLinearVelocity(), speed = velocity.length(); if (speed > 29) body.setLinearVelocity(velocity.mul(29 / speed)); });
-      const drained = this.balls.filter((body) => body.getPosition().y * SCALE > H + 40); drained.forEach((body) => this.removeBall(body));
+      const drained = this.balls.filter((body) => body.getUserData().drained || body.getPosition().y * SCALE > H + 40); drained.forEach((body) => this.removeBall(body));
       if (!this.balls.length && this.enemies.length) this.allBallsDrained();
       this.run.comboClock -= dt; if (this.run.comboClock <= 0) this.run.combo = Math.max(1, this.run.combo - dt * .45);
     }
@@ -231,12 +237,14 @@
       for (let y = 160; y < H; y += 72) art.moveTo(38, y).lineTo(W - 38, y).stroke({ width: 1, color: biome.accent, alpha: .08 });
       if (!this.run) return;
       this.walls.forEach((body) => { const [x1, y1, x2, y2] = body.getUserData().line; art.moveTo(x1, y1).lineTo(x2, y2).stroke({ width: 5, color: biome.accent, alpha: .52 }); });
+      this.aprons.forEach((body) => { const points = body.getUserData().points.flat(); art.poly(points).fill({ color: 0x071219, alpha: .98 }).stroke({ width: 4, color: biome.accent, alpha: .62 }); });
+      if (this.drain) { const [x, y, width, height] = this.drain.getUserData().rect; art.roundRect(x, y, width, height, 10).fill({ color: 0x000206, alpha: 1 }).stroke({ width: 2, color: 0xff536b, alpha: .42 }); }
       if (this.phase === "defense" || (this.phase === "pause" && this.phaseBeforePause === "defense")) this.renderDefense(biome); else this.renderAttack(biome);
       this.particles.forEach((p) => art.circle(p.x, p.y, p.size).fill({ color: p.color, alpha: clamp(p.life, 0, 1) }));
     }
     renderAttack(biome) {
       this.bumpers.forEach((body) => { const p = body.getPosition(), data = body.getUserData(), radius = 34 + data.pulse * 10; art.circle(p.x * SCALE, p.y * SCALE, radius).fill({ color: biome.accent, alpha: .12 }).stroke({ width: 3, color: biome.accent, alpha: .7 }); art.circle(p.x * SCALE, p.y * SCALE, 14).fill({ color: 0xeaffff, alpha: .7 }); data.pulse *= .88; });
-      this.flippers.forEach((body) => this.drawBody(body, 0xe9ffff, biome.accent));
+      this.flippers.forEach((body) => { if (body.getUserData().pivot.y * SCALE > 900) art.circle(body.getUserData().pivot.x * SCALE, body.getUserData().pivot.y * SCALE, 18).fill({ color: 0x071219, alpha: 1 }).stroke({ width: 4, color: biome.accent, alpha: .8 }); this.drawBody(body, 0xe9ffff, biome.accent); });
       this.enemies.forEach((body) => { const data = body.getUserData(), def = D.enemyById[data.id], p = body.getPosition(), radius = def.radius || 62, hp = clamp(data.hp / data.maxHp, 0, 1); art.circle(p.x * SCALE, p.y * SCALE, radius + (data.flash ? 7 : 0)).fill({ color: data.flash ? 0xffffff : 0x07151c, alpha: .96 }).stroke({ width: def.level ? 5 : 3, color: def.color, alpha: 1 }); art.poly([p.x * SCALE, p.y * SCALE - radius * .52, p.x * SCALE + radius * .48, p.y * SCALE + radius * .35, p.x * SCALE - radius * .48, p.y * SCALE + radius * .35]).stroke({ width: 2, color: def.color, alpha: .78 }); art.rect(p.x * SCALE - radius, p.y * SCALE - radius - 18, radius * 2, 6).fill({ color: 0xffffff, alpha: .11 }); art.rect(p.x * SCALE - radius, p.y * SCALE - radius - 18, radius * 2 * hp, 6).fill({ color: def.color, alpha: data.flash ? 1 : .45 }); });
       this.balls.forEach((body) => { const p = body.getPosition(), radius = body.getFixtureList().getShape().getRadius() * SCALE; art.circle(p.x * SCALE, p.y * SCALE, radius + 8).fill({ color: biome.accent, alpha: .12 }); art.circle(p.x * SCALE, p.y * SCALE, radius).fill({ color: 0xeaffff, alpha: 1 }).stroke({ width: 3, color: biome.accent, alpha: 1 }); });
     }
