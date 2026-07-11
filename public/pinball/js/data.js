@@ -78,6 +78,20 @@
   ];
 
   const TABLE_ELEMENT_TYPES = ["bumper", "slingshot", "spinner", "gate", "rollover", "ramp", "kicker", "captive", "magnet", "vent", "crusher", "cover"];
+  const OBSTACLE_TUTORIALS = {
+    bumper: { name: "Bumper", description: "A high-rebound target that redirects the ball and builds XP.", tip: "Use repeated bumper routes to extend combos." },
+    slingshot: { name: "Slingshot", description: "A reactive rail that kicks the ball away with extra speed.", tip: "Catch its rebound with a raised flipper." },
+    spinner: { name: "Spinner", description: "A rotating blade that awards XP and charge as it turns.", tip: "Fast glancing shots produce the most rotation." },
+    gate: { name: "One-Way Gate", description: "A directional rail that opens for upward shots and blocks the return path.", tip: "Use it to keep the ball in the upper playfield." },
+    rollover: { name: "Rollover", description: "A lane sensor that rewards the first pass by each ball.", tip: "Route multiballs across different switches." },
+    ramp: { name: "Ramp", description: "A guided corridor with a controlled exit and bonus XP.", tip: "Enter between the rails from the open end." },
+    kicker: { name: "Vortex", description: "Captures the ball, telegraphs a randomized safe launch, then fires it upward.", tip: "Read the arrow: its direction and length show the next launch." },
+    captive: { name: "Captive Ball", description: "A heavy target constrained to its own rail.", tip: "Strike it hard to transfer momentum and open routes." },
+    magnet: { name: "Magnetic Field", description: "A bounded field alternately pulls and pushes active balls.", tip: "Watch the ring polarity before committing a shot." },
+    vent: { name: "Thermal Vent", description: "A timed hazard that blasts balls while its chamber is active.", tip: "The warning glow gives at least half a second to react." },
+    crusher: { name: "Crusher", description: "A moving solid hazard that sweeps a fixed, telegraphed route.", tip: "Shoot after it passes to use the open lane." },
+    cover: { name: "Breakable Cover", description: "A durable barrier that loses integrity when struck.", tip: "Break it to reveal cleaner upper-table routes." },
+  };
   const TABLE_MODULES = [
     { id: "foundry-classic", biome: "foundry", name: "CLASSIC FORGE", shotFamilies: 3, minPassage: 92, elements: [
       { type: "bumper", x: 220, y: 500, radius: 32 }, { type: "bumper", x: 360, y: 420, radius: 38 }, { type: "bumper", x: 500, y: 500, radius: 32 },
@@ -211,7 +225,7 @@
   const ACHIEVEMENTS = Array.from({ length: 32 }, (_, i) => ({ id: `achievement-${i + 1}`, name: ["FIRST LIGHT", "DEAD CENTER", "NO DRAIN", "CHAIN REACTION", "MASTER BUILDER", "BARRAGE DANCER", "CORE BREAKER", "ASCENDANT"][i % 8] + (i > 7 ? ` ${Math.floor(i / 8) + 1}` : ""), target: (i % 8 + 1) * (Math.floor(i / 8) + 1) }));
   const PATTERNS = ["aim", "lane", "spread", "ring", "cross", "spiral"];
 
-  const content = { VERSION, WORLD: { width: 720, height: 1280, physicsHz: 120 }, BIOMES, DIFFICULTIES, RARITIES, ENEMIES, BOSSES, CARDS, LEVELS, ACHIEVEMENTS, PATTERNS, ACTOR_ASSETS, DEFENSE_ASSETS, ROLE_SYSTEMS, TABLE_ELEMENT_TYPES, TABLE_MODULES, ELITE_MODIFIERS };
+  const content = { VERSION, WORLD: { width: 720, height: 1280, physicsHz: 120 }, BIOMES, DIFFICULTIES, RARITIES, ENEMIES, BOSSES, CARDS, LEVELS, ACHIEVEMENTS, PATTERNS, ACTOR_ASSETS, DEFENSE_ASSETS, ROLE_SYSTEMS, TABLE_ELEMENT_TYPES, OBSTACLE_TUTORIALS, TABLE_MODULES, ELITE_MODIFIERS };
   content.enemyById = Object.fromEntries([...ENEMIES, ...BOSSES].map((x) => [x.id, x]));
   content.cardById = Object.fromEntries(CARDS.map((x) => [x.id, x]));
   content.biomeById = Object.fromEntries(BIOMES.map((x) => [x.id, x]));
@@ -227,6 +241,7 @@
     if (new Set(TABLE_MODULES.map((layout) => layout.id)).size !== TABLE_MODULES.length) errors.push("Table IDs must be unique");
     if (ENEMIES.some((enemy) => !enemy.movement || !enemy.behavior || !enemy.defensePattern)) errors.push("Enemy behavior metadata is incomplete");
     if (TABLE_MODULES.some((layout) => layout.shotFamilies < 2 || layout.minPassage < 72 || layout.elements.some((element) => !TABLE_ELEMENT_TYPES.includes(element.type)))) errors.push("Invalid table layout constraints");
+    if (TABLE_ELEMENT_TYPES.some((type) => !OBSTACLE_TUTORIALS[type]?.name || !OBSTACLE_TUTORIALS[type]?.description || !OBSTACLE_TUTORIALS[type]?.tip)) errors.push("Obstacle tutorial metadata is incomplete");
     if (Object.keys(ACTOR_ASSETS.roles).length !== 12 || Object.keys(ACTOR_ASSETS.bosses).length !== 5) errors.push("Actor asset manifest is incomplete");
     if (!DEFENSE_ASSETS.ship || Object.keys(DEFENSE_ASSETS.backgrounds).length !== 5 || BIOMES.some((biome) => !DEFENSE_ASSETS.backgrounds[biome.id])) errors.push("Defense asset manifest is incomplete");
     if (BOSSES.some((boss) => !boss.spriteId || !boss.projectileTheme || !boss.defensePresentation)) errors.push("Boss presentation metadata is incomplete");

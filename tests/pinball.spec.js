@@ -4,6 +4,7 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.removeItem('flipstrike.v3.progress');
     localStorage.removeItem('flipstrike.v3.suspend');
+    localStorage.setItem('flipstrike.v3.progress', JSON.stringify({ version: 3, seenObstacles: ['bumper', 'slingshot', 'spinner', 'gate', 'rollover', 'ramp', 'kicker', 'captive', 'magnet', 'vent', 'crusher', 'cover'] }));
     indexedDB.deleteDatabase('flipstrike.v3');
   });
 });
@@ -107,6 +108,31 @@ test('all enemy roles and biome tables expose deterministic variety metadata', a
   expect(content.roles).toHaveLength(12); expect(content.movements.length).toBeGreaterThanOrEqual(9); expect(content.validEnemies).toBe(true);
   expect(Object.values(content.biomeCounts)).toEqual([3, 3, 3, 3, 3]); expect(content.elementTypes.sort()).toEqual([...FLIP_DATA_ELEMENT_TYPES].sort());
   expect(content.assigned).toHaveLength(15);
+});
+
+test('new obstacle tutorials queue once, freeze play, and persist dismissal', async ({ page }) => {
+  await page.goto('/pinball/'); await page.waitForFunction(() => !!window.FLIPSTRIKE);
+  await page.evaluate(() => { FlipStorage.progress.seenObstacles = []; FlipStorage.saveProgress(); FLIPSTRIKE.startNew(2); });
+  await expect(page.locator('#obstacle-tutorial')).toBeVisible(); await expect(page.locator('#obstacle-title')).toHaveText('Bumper');
+  const frozen = await page.evaluate(() => ({ time: FLIPSTRIKE.run.time, phase: FLIPSTRIKE.phase, clock: FLIPSTRIKE.tableElements[0].clock, queue: FLIPSTRIKE.tutorial.queue.length }));
+  expect(frozen.phase).toBe('obstacleTutorial'); expect(frozen.queue).toBe(1);
+  await page.waitForTimeout(180);
+  expect(await page.evaluate(() => ({ time: FLIPSTRIKE.run.time, clock: FLIPSTRIKE.tableElements[0].clock }))).toEqual({ time: frozen.time, clock: frozen.clock });
+  await page.keyboard.press('Enter'); await expect(page.locator('#obstacle-title')).toHaveText('Slingshot'); await page.locator('#obstacle-continue').click();
+  await expect(page.locator('#obstacle-tutorial')).toBeHidden(); expect(await page.evaluate(() => ({ phase: FLIPSTRIKE.phase, running: FLIPSTRIKE.running, seen: FlipStorage.progress.seenObstacles }))).toEqual({ phase: 'attack', running: true, seen: ['bumper', 'slingshot'] });
+  await page.evaluate(() => FLIPSTRIKE.scanObstacleTutorials()); await expect(page.locator('#obstacle-tutorial')).toBeHidden();
+});
+
+test('vortex capture telegraphs a deterministic safe vector and restores it exactly', async ({ page }) => {
+  await page.goto('/pinball/'); await page.waitForFunction(() => !!window.FLIPSTRIKE); await page.evaluate(() => FLIPSTRIKE.startNew(3));
+  const result = await page.evaluate(() => {
+    const vortex = FLIPSTRIKE.tableElements.find((element) => element.def.type === 'kicker'), vectors = Array.from({ length: 8 }, () => FLIPSTRIKE.randomVortexLaunch()), ball = FLIPSTRIKE.balls[0]; ball.getUserData().launched = true; ball.setGravityScale(1); ball.setTransform(planck.Vec2(vortex.def.x / 60, vortex.def.y / 60), 0); FLIPSTRIKE.onContact({ getFixtureA: () => ball.getFixtureList(), getFixtureB: () => vortex.bodies[0].getFixtureList() }); const capture = vortex.captures[0], serialized = FLIPSTRIKE.serializeTable().find((item) => item.id === vortex.id).captures[0]; return { vectors, capture: { remaining: capture.remaining, duration: capture.duration, vector: capture.launchVector }, serialized };
+  });
+  expect(new Set(result.vectors.map((vector) => vector.map((value) => value.toFixed(2)).join(','))).size).toBeGreaterThan(4);
+  for (const vector of result.vectors) { const speed = Math.hypot(...vector); expect(vector[1]).toBeLessThanOrEqual(-12); expect(speed).toBeGreaterThanOrEqual(14); expect(speed).toBeLessThanOrEqual(24); }
+  expect(result.capture.duration).toBe(.7); expect(result.serialized.launchVector).toEqual(result.capture.vector);
+  const launched = await page.evaluate(() => { const vortex = FLIPSTRIKE.tableElements.find((element) => element.def.type === 'kicker'), capture = vortex.captures[0], expected = [...capture.launchVector]; FLIPSTRIKE.updateTable(.71); const velocity = FLIPSTRIKE.balls[0].getLinearVelocity(); return { expected, actual: [velocity.x, velocity.y], captures: vortex.captures.length }; });
+  expect(launched.captures).toBe(0); expect(launched.actual[0]).toBeCloseTo(launched.expected[0], 5); expect(launched.actual[1]).toBeCloseTo(launched.expected[1], 5);
 });
 
 const FLIP_DATA_ELEMENT_TYPES = ['bumper', 'slingshot', 'spinner', 'gate', 'rollover', 'ramp', 'kicker', 'captive', 'magnet', 'vent', 'crusher', 'cover'];
