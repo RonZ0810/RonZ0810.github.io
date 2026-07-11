@@ -386,6 +386,20 @@ test('XP threshold pauses play for a three-card draft', async ({ page }) => {
   expect(await page.evaluate(() => Object.values(FLIPSTRIKE.run.cards).reduce((a, b) => a + b, 0))).toBe(1);
 });
 
+test('final enemy XP threshold cannot replace the level clear screen', async ({ page }) => {
+  await page.goto('/pinball/'); await page.waitForFunction(() => !!window.FLIPSTRIKE); await expect(page.locator('.brand')).toBeVisible(); await page.evaluate(() => FLIPSTRIKE.startNew(1));
+  await page.evaluate(() => { FLIPSTRIKE.run.xp = FLIPSTRIKE.xpNeeded() - 1; FLIPSTRIKE.killEnemy(FLIPSTRIKE.enemies[0]); });
+  await expect(page.getByRole('button', { name: /Next Level/ })).toBeVisible(); await page.waitForTimeout(250);
+  await expect(page.locator('.upgrade-card')).toHaveCount(0); expect(await page.evaluate(() => ({ phase: FLIPSTRIKE.phase, pending: FLIPSTRIKE.run.pendingDraft, timer: FLIPSTRIKE.draftTimer }))).toEqual({ phase: 'clear', pending: false, timer: null });
+});
+
+test('boundary XP draft resolves before spawning the next encounter exactly once', async ({ page }) => {
+  await page.goto('/pinball/'); await page.waitForFunction(() => !!window.FLIPSTRIKE); await expect(page.locator('.brand')).toBeVisible(); await page.evaluate(() => FLIPSTRIKE.startNew(21));
+  await page.evaluate(() => { FLIPSTRIKE.enemies.forEach((enemy) => { FLIPSTRIKE.destroyActorSprite(enemy); FLIPSTRIKE.world.destroyBody(enemy); }); FLIPSTRIKE.enemies = []; const enemy = FLIPSTRIKE.spawnEnemyInstance({ id: 'drifter-1', p: { x: 6, y: 6 } }); FLIPSTRIKE.run.xp = FLIPSTRIKE.xpNeeded() - 1; FLIPSTRIKE.killEnemy(enemy); });
+  await expect(page.locator('.upgrade-card')).toHaveCount(3); expect(await page.evaluate(() => ({ encounter: FLIPSTRIKE.run.encounter, enemies: FLIPSTRIKE.enemies.length, advance: FLIPSTRIKE.run.pendingEncounterAdvance }))).toEqual({ encounter: 0, enemies: 0, advance: true });
+  await page.locator('.upgrade-card').first().click(); await expect.poll(() => page.evaluate(() => FLIPSTRIKE.enemies.length)).toBeGreaterThan(0); const expected = await page.evaluate(() => FLIPSTRIKE.run.challenge.encounters[1]); expect(await page.evaluate(() => FLIPSTRIKE.enemies.map((enemy) => enemy.getUserData().id))).toEqual(expected); await page.waitForTimeout(650); expect(await page.evaluate(() => FLIPSTRIKE.enemies.map((enemy) => enemy.getUserData().id))).toEqual(expected);
+});
+
 test('pause creates and consumes a one-use suspend save', async ({ page }) => {
   await page.goto('/pinball/');
   await page.getByRole('button', { name: /Campaign/ }).click();
