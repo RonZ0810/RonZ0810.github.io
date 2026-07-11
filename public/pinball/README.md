@@ -21,7 +21,8 @@ FLIPSTRIKE is a portrait-first pinball action roguelike implemented from the pro
 - Collision-backed lower aprons connect to both flipper hinges and feed a non-rebounding central drain
 - A continuous collision-backed upper rail closes the playfield so high-energy shots cannot escape above the table
 - Physics-driven flippers, charged launch, multiball, nudge upgrades, and direct-impact combat across bumpers, slingshots, spinners, gates, rollovers, ramps, kickers, captive balls, magnets, vents, crushers, and breakable cover
-- Drain-triggered attack/defense rhythm with two-second `BALL LEAKED` and `WAVE SURVIVED` intermissions
+- Drain-triggered attack/defense rhythm with two-second `BALL LEAKED` and `WAVE SURVIVED` intermissions; survival waits until every fired projectile has cleared
+- Full-scene defense transformations with a dedicated player starfighter and five biome-specific space battlefields
 - The level timer runs only while a launched ball is active or during the defense phase; plunger setup, intermissions, drafts, pauses, and relaunches are timer-safe
 - Twelve illustrated enemy roles with biome/tier treatments, five unique boss presenters, themed hostile projectiles, and a visually distinct energy-ring player ball
 - Three-card XP drafts, stack limits, rarity weights, abilities, consumables, rerolls, and level-local builds
@@ -56,7 +57,7 @@ npm test
 
 ## Generated art
 
-`assets/flipstrike-tower.png` and the 17 transparent WebP files in `assets/actors/` were generated with OpenAI's built-in image generation workflow for this project. The actors use original neon biomechanical pinball silhouettes with role-specific weapons, armor, shields, and boss cores. Procedural vector fallbacks remain available if a texture cannot load. Generation metadata and prompt summaries are recorded in `assets/actors/manifest.json`.
+`assets/flipstrike-tower.png`, the 17 transparent WebP files in `assets/actors/`, and the ship plus five stage files in `assets/defense/` were generated with OpenAI's built-in image generation workflow for this project. Defense mode morphs the player into a starfighter and crossfades the table into a biome-specific space scene. Procedural vector fallbacks remain available if a texture cannot load. Generation metadata and prompt summaries are recorded in each asset directory's `manifest.json`.
 
 ## Third-party runtimes
 

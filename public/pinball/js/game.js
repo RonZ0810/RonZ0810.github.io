@@ -9,10 +9,13 @@
   const formatTime = (seconds) => `${String(Math.floor(Math.max(0, seconds) / 60)).padStart(2, "0")}:${String(Math.floor(Math.max(0, seconds) % 60)).padStart(2, "0")}`;
   const app = new X.Application();
   await app.init({ canvas, width: W, height: H, antialias: true, autoDensity: false, background: 0x02060b, preference: "webgl" });
-  const scene = new X.Container(), backdrop = new X.Sprite(await X.Assets.load("assets/flipstrike-tower.png")), art = new X.Graphics(), actorLayer = new X.Container();
+  const scene = new X.Container(), backdrop = new X.Sprite(await X.Assets.load("assets/flipstrike-tower.png")), defenseBackdrop = new X.Sprite(), art = new X.Graphics(), actorLayer = new X.Container(), defenseLayer = new X.Container(), defenseArt = new X.Graphics(), defenseBossLayer = new X.Container();
   const actorTextures = {};
   await Promise.all([...Object.entries(D.ACTOR_ASSETS.roles).map(([id, url]) => [`role:${id}`, url]), ...Object.entries(D.ACTOR_ASSETS.bosses).map(([id, url]) => [`boss:${id}`, url])].map(async ([id, url]) => { try { actorTextures[id] = await X.Assets.load(url); } catch { actorTextures[id] = null; } }));
-  backdrop.width = W; backdrop.height = H; backdrop.alpha = .2; scene.addChild(backdrop, art, actorLayer); app.stage.addChild(scene);
+  const defenseTextures = { ship: null, backgrounds: {} };
+  await Promise.all([["ship", D.DEFENSE_ASSETS.ship], ...Object.entries(D.DEFENSE_ASSETS.backgrounds)].map(async ([id, url]) => { try { const texture = await X.Assets.load(url); if (id === "ship") defenseTextures.ship = texture; else defenseTextures.backgrounds[id] = texture; } catch { if (id !== "ship") defenseTextures.backgrounds[id] = null; } }));
+  const shipSprite = defenseTextures.ship ? new X.Sprite(defenseTextures.ship) : null; if (shipSprite) { shipSprite.anchor.set(.5); shipSprite.eventMode = "none"; }
+  backdrop.width = W; backdrop.height = H; backdrop.alpha = .2; defenseBackdrop.width = W; defenseBackdrop.height = H; defenseBackdrop.alpha = 0; defenseLayer.addChild(defenseArt, defenseBossLayer); if (shipSprite) defenseLayer.addChild(shipSprite); scene.addChild(backdrop, defenseBackdrop, art, actorLayer, defenseLayer); app.stage.addChild(scene);
 
   class Rng {
     constructor(seed) { this.state = seed >>> 0 || 1; }
@@ -43,7 +46,7 @@
   class GameDirector {
     constructor() {
       this.audio = new AudioSystem(); this.saveService = new S.SaveService(); this.phase = "menu"; this.running = false; this.world = null; this.run = null;
-      this.balls = []; this.enemies = []; this.flippers = []; this.bumpers = []; this.walls = []; this.aprons = []; this.mounts = []; this.tableElements = []; this.drain = null; this.projectiles = []; this.particles = []; this.floaters = []; this.actorSprites = new Map();
+      this.balls = []; this.enemies = []; this.flippers = []; this.bumpers = []; this.walls = []; this.aprons = []; this.mounts = []; this.tableElements = []; this.drain = null; this.projectiles = []; this.particles = []; this.floaters = []; this.actorSprites = new Map(); this.defenseBossSprite = null; this.defenseBossId = null; this.defenseBiome = null;
       this.keys = { left: false, right: false }; this.touch = { left: false, right: false }; this.dragX = null; this.accumulator = 0; this.last = performance.now(); this.hitCooldown = new Map();
       this.bindInput(); this.menu(); app.ticker.add((ticker) => this.frame(ticker.deltaMS / 1000));
     }
@@ -71,11 +74,11 @@
     }
     async startNew(level = 1, endless = false) {
       const index = endless ? 100 : clamp(level - 1, 0, 100), spec = D.LEVELS[index], seed = endless ? (Date.now() >>> 0) : spec.seed;
-      this.run = { version: D.VERSION, level: spec.level, displayLevel: endless ? Math.max(102, S.progress.endlessBest + 1) : spec.level, endless, seed, encounter: 0, time: spec.timer, balls: spec.balls, xp: 0, draftCount: 0, cards: {}, consumables: [], rerolls: 1, score: 0, combo: 1, comboClock: 0, hits: 0, kills: 0, excellent: 0, damage: 0, bossPhase: 1, defenseHitGuard: false, transition: null, replacementBudget: Math.max(0, Math.floor((spec.level - 36) / 25) + (spec.elite ? 1 : 0)), shotSequence: 0, started: Date.now() };
+      this.run = { version: D.VERSION, level: spec.level, displayLevel: endless ? Math.max(102, S.progress.endlessBest + 1) : spec.level, endless, seed, encounter: 0, time: spec.timer, balls: spec.balls, xp: 0, draftCount: 0, cards: {}, consumables: [], rerolls: 1, score: 0, combo: 1, comboClock: 0, hits: 0, kills: 0, excellent: 0, damage: 0, bossPhase: 1, defenseHitGuard: false, defenseState: null, transition: null, replacementBudget: Math.max(0, Math.floor((spec.level - 36) / 25) + (spec.elite ? 1 : 0)), shotSequence: 0, started: Date.now() };
       this.rng = new Rng(seed); this.startEncounter();
     }
     startEncounter(snapshot = null) {
-      const spec = this.levelSpec(); this.run.replacementBudget ??= Math.max(0, Math.floor((spec.level - 36) / 25) + (spec.elite ? 1 : 0)); this.run.shotSequence ??= 0; this.run.bossPhase ??= 1; this.phase = snapshot?.phase || "attack"; this.running = true; this.projectiles = snapshot?.projectiles || []; this.particles = []; this.floaters = []; this.createWorld(snapshot?.tableState); this.spawnEncounter(snapshot?.enemies); if (snapshot?.balls?.length) snapshot.balls.forEach((ball) => this.spawnBall(ball)); else this.prepareBall(); this.restoreTableCaptures(snapshot?.tableState);
+      const spec = this.levelSpec(); this.run.replacementBudget ??= Math.max(0, Math.floor((spec.level - 36) / 25) + (spec.elite ? 1 : 0)); this.run.shotSequence ??= 0; this.run.bossPhase ??= 1; this.phase = snapshot?.phase || "attack"; if (this.phase === "defense") this.run.defenseState ||= (this.run.defenseTime > 0 ? "active" : "clearing"); this.running = true; this.projectiles = snapshot?.projectiles || []; this.particles = []; this.floaters = []; this.createWorld(snapshot?.tableState); this.spawnEncounter(snapshot?.enemies); if (snapshot?.balls?.length) snapshot.balls.forEach((ball) => this.spawnBall(ball)); else this.prepareBall(); this.restoreTableCaptures(snapshot?.tableState);
       overlay.innerHTML = ""; backdrop.alpha = .11; hud.classList.remove("hidden"); controls.classList.remove("hidden"); abilities.classList.remove("hidden"); pauseButton.classList.remove("hidden"); if (this.run.transition) this.showTransition(); else this.hideTransition(); this.updateHud();
     }
     levelSpec() { return D.LEVELS[Math.min(100, this.run.level - 1)]; }
@@ -148,16 +151,18 @@
     flipperLength() { return 1 + this.effectCount("flipperLength") * .08; }
     flipperPower() { return 1 + this.effectCount("flipperPower") * .14; }
     flipperTargetAngle(active, travel) { return active ? travel : 0; }
-    clearActorSprites() { for (const sprite of this.actorSprites?.values?.() || []) sprite.destroy(); this.actorSprites?.clear?.(); }
+    clearActorSprites() { for (const sprite of this.actorSprites?.values?.() || []) sprite.destroy(); this.actorSprites?.clear?.(); this.clearDefenseBossSprite(); }
+    clearDefenseBossSprite() { this.defenseBossSprite?.destroy?.(); this.defenseBossSprite = null; this.defenseBossId = null; }
     createActorSprite(body, def) { const texture = actorTextures[def.level ? `boss:${def.spriteId}` : `role:${def.spriteId}`]; if (!texture) return null; const sprite = new X.Sprite(texture); sprite.anchor.set(.5); sprite.eventMode = "none"; actorLayer.addChild(sprite); this.actorSprites.set(body, sprite); return sprite; }
     destroyActorSprite(body) { const sprite = this.actorSprites.get(body); if (sprite) sprite.destroy(); this.actorSprites.delete(body); }
     currentBoss() { return this.enemies.find((body) => D.enemyById[body.getUserData().id]?.level) || null; }
+    ensureDefenseBossSprite(def) { if (!def || this.defenseBossId === def.id) return this.defenseBossSprite; this.clearDefenseBossSprite(); const texture = actorTextures[`boss:${def.spriteId}`]; if (!texture) return null; const sprite = new X.Sprite(texture); sprite.anchor.set(.5); sprite.eventMode = "none"; defenseBossLayer.addChild(sprite); this.defenseBossSprite = sprite; this.defenseBossId = def.id; return sprite; }
     setControlLock(locked) { controls.classList.toggle("locked", locked); abilities.classList.toggle("locked", locked); if (locked) { this.keys.left = this.keys.right = this.touch.left = this.touch.right = false; } }
-    beginTransition(kind, nextPhase) { this.phase = kind === "leaked" ? "attackToDefense" : "defenseToAttack"; this.run.transition = { kind, remaining: 2, duration: 2, nextPhase }; this.projectiles = []; this.setControlLock(true); this.showTransition(); this.audio.tone(kind === "leaked" ? 88 : 420, .28, .06); }
+    beginTransition(kind, nextPhase) { this.phase = kind === "leaked" ? "attackToDefense" : "defenseToAttack"; this.run.transition = { kind, remaining: 2, duration: 2, nextPhase }; if (kind === "leaked") this.run.carriageX = W / 2; this.projectiles = []; this.setControlLock(true); this.showTransition(); this.audio.tone(kind === "leaked" ? 88 : 420, .28, .06); }
     showTransition() { const transition = this.run?.transition; if (!transition) return this.hideTransition(); const survived = transition.kind === "survived"; transitionScreen.classList.toggle("green", survived); transitionScreen.classList.remove("hidden"); $("#transition-kicker").textContent = survived ? "DEFENSE COMPLETE" : "DRAIN DETECTED"; $("#transition-title").textContent = survived ? "WAVE SURVIVED" : "BALL LEAKED"; this.updateTransitionPresentation(); }
     updateTransitionPresentation() { const transition = this.run?.transition; if (!transition) return; transitionScreen.style.setProperty("--phase-progress", clamp(transition.remaining / transition.duration, 0, 1)); }
     hideTransition() { transitionScreen.classList.add("hidden"); transitionScreen.classList.remove("green"); transitionScreen.style.removeProperty("--phase-progress"); }
-    updateTransition(dt) { if (!this.run.transition) return; this.run.transition.remaining -= dt; this.updateTransitionPresentation(); if (this.run.transition.remaining > 0) return; const next = this.run.transition.nextPhase; this.run.transition = null; this.hideTransition(); this.setControlLock(false); if (next === "defense") this.beginDefense(); else { this.phase = "attack"; this.prepareBall(); this.toast("RELAUNCH"); } }
+    updateTransition(dt) { if (!this.run.transition) return; this.run.transition.remaining -= dt; this.updateTransitionPresentation(); if (this.run.transition.remaining > 0) return; const next = this.run.transition.nextPhase; this.run.transition = null; this.hideTransition(); this.setControlLock(false); if (next === "defense") this.beginDefense(); else { this.phase = "attack"; this.run.defenseState = null; this.prepareBall(); this.toast("RELAUNCH"); } }
     spawnEncounter(saved = null) {
       const spec = this.levelSpec(), ids = spec.encounters[this.run.encounter] || spec.encounters[0];
       (saved || ids.map((id, i) => ({ id, hp: null, maxHp: null, p: this.enemyAnchor(i, D.enemyById[id]), phase: 1 }))).forEach((item, index) => this.spawnEnemyInstance(item, index));
@@ -244,7 +249,7 @@
       if (card.effect === "timeRefill") this.run.time += 20; this.run.draftCount++; this.run.pendingDraft = false; this.phase = "attack"; overlay.innerHTML = ""; this.running = true; this.toast(card.name);
     }
     reroll() { if (!this.run.rerolls) return; this.run.rerolls--; this.showDraft(); }
-    isMainTimerActive() { return this.phase === "defense" || (this.phase === "attack" && this.balls.some((body) => body.getUserData().launched && !body.getUserData().drained)); }
+    isMainTimerActive() { return (this.phase === "defense" && this.run.defenseState !== "clearing") || (this.phase === "attack" && this.balls.some((body) => body.getUserData().launched && !body.getUserData().drained)); }
     update(dt) {
       if (!this.running || !this.run) return; if (this.isMainTimerActive()) this.run.time -= dt; if (this.run.time <= 0) return this.fail("TIME EXPIRED");
       if (this.phase === "attack") this.updateAttack(dt); else if (this.phase === "defense") this.updateDefense(dt); else if (this.phase === "attackToDefense" || this.phase === "defenseToAttack") this.updateTransition(dt);
@@ -300,13 +305,14 @@
       if (this.effectCount("ballSave") && !this.run.ballSaveUsed) { this.run.ballSaveUsed = true; return this.prepareBall(); }
       this.run.balls--; this.run.combo = Math.max(1, this.run.combo * .7); if (this.run.balls <= 0) return this.fail("NO BALLS REMAIN"); this.beginTransition("leaked", "defense");
     }
-    beginDefense() { this.phase = "defense"; this.run.defenseTime = clamp(5 + this.run.level * .07, 5, 12); this.run.shotClock = .5; this.run.carriageX = W / 2; this.run.defenseInvulnerable = 0; this.run.defenseSlow = 0; this.projectiles = []; this.setControlLock(false); this.toast("ENEMY PROJECTILE TURN"); }
+    beginDefense() { this.phase = "defense"; this.run.defenseState = "active"; this.run.defenseTime = clamp(5 + this.run.level * .07, 5, 12); this.run.shotClock = .5; this.run.carriageX = W / 2; this.run.defenseInvulnerable = 0; this.run.defenseSlow = 0; this.projectiles = []; this.setControlLock(false); this.toast("ENEMY PROJECTILE TURN"); }
+    beginDefenseCleanup() { this.run.defenseState = "clearing"; this.run.defenseTime = 0; this.run.shotClock = 0; this.toast("CLEAR THE FIELD"); }
     updateDefense(dt) {
-      this.run.defenseTime -= dt; this.run.shotClock -= dt; this.run.defenseInvulnerable -= dt; this.run.defenseSlow -= dt;
+      const active = this.run.defenseState !== "clearing"; if (active) { this.run.defenseTime -= dt; this.run.shotClock -= dt; if (this.run.defenseTime <= 0) this.beginDefenseCleanup(); } this.run.defenseInvulnerable -= dt; this.run.defenseSlow -= dt;
       const direction = (this.keys.left || this.touch.left ? -1 : 0) + (this.keys.right || this.touch.right ? 1 : 0), speed = this.run.defenseSlow > 0 ? 190 : 360; if (this.dragX !== null) this.run.carriageX += (this.dragX - this.run.carriageX) * Math.min(1, dt * 12); else this.run.carriageX = clamp(this.run.carriageX + direction * speed * dt, 90, W - 90);
-      if (this.run.shotClock <= 0) { this.spawnProjectile(); this.run.shotClock = clamp(.82 - this.run.level * .004, .38, .82); }
+      if (this.run.defenseState === "active" && this.run.shotClock <= 0) { this.spawnProjectile(); this.run.shotClock = clamp(.82 - this.run.level * .004, .38, .82); }
       this.projectiles.forEach((p) => { p.age += dt; p.telegraph = Math.max(0, (p.telegraph || 0) - dt); if (p.telegraph > 0) return; p.x += p.vx * dt; p.y += p.vy * dt; if (!p.hit && p.y > 1060 && p.y < 1115 && Math.abs(p.x - this.run.carriageX) < 70 && this.run.defenseInvulnerable <= 0) { p.hit = true; this.run.combo = 1; this.run.time -= p.penalty; this.run.defenseSlow = .7; this.run.defenseInvulnerable = .65; this.pushFloater(p.x, p.y, `-${p.penalty}s`, 0xff6d79, 24); this.audio.tone(75, .15, .07); if (navigator.vibrate && S.settings.vibration) navigator.vibrate(45); } }); this.projectiles = this.projectiles.filter((p) => !p.hit && p.y < H + 40);
-      if (this.run.defenseTime <= 0) this.beginTransition("survived", "attack");
+      if (this.run.defenseState === "clearing" && this.projectiles.length === 0) this.beginTransition("survived", "attack");
     }
     spawnProjectile() {
       const boss = this.currentBoss(), shooter = boss || this.enemies[(this.run.shotSequence || 0) % Math.max(1, this.enemies.length)], shooterDef = shooter ? D.enemyById[shooter.getUserData().id] : null, pattern = shooterDef?.defensePattern || D.PATTERNS[(this.run.level + Math.floor(this.run.defenseTime)) % D.PATTERNS.length], theme = boss ? shooterDef.projectileTheme : ({ aim: "shard", lane: "beam", spread: "orb", ring: "ring", cross: "cross", spiral: "prism" }[pattern]), sourceX = boss ? W / 2 : shooter ? clamp(shooter.getPosition().x * SCALE, 90, W - 90) : 110 + this.rng.next() * 500, targetX = this.run.carriageX + (this.rng.next() - .5) * 80, speed = 260 + this.run.level * 1.2, dx = targetX - sourceX, dy = 900, length = Math.hypot(dx, dy), penalty = 1 + Math.min(2, Math.floor(this.run.level / 35)); this.run.shotSequence = (this.run.shotSequence || 0) + 1;
@@ -334,8 +340,18 @@
     async saveExit() { this.phase = this.phaseBeforePause || "attack"; await this.saveService.putSuspend(SaveSnapshot.from(this)); this.toast("ONE-USE SUSPEND SAVED"); await this.menu(); }
     async continueRun() { const snapshot = await this.saveService.consumeSuspend(); if (!snapshot || snapshot.version !== D.VERSION) return this.menu(); this.run = snapshot.run; this.rng = new Rng(snapshot.rng); this.startEncounter(snapshot); }
     frame(dt) { dt = Math.min(.05, dt); if (this.running) { this.accumulator += dt; let steps = 0; while (this.accumulator >= STEP && steps++ < 8) { this.update(STEP); this.accumulator -= STEP; } } this.render(); }
+    phaseVisualMix() {
+      const phase = this.phase === "pause" ? this.phaseBeforePause : this.phase; if (phase === "defense") return 1; const transition = this.run?.transition;
+      if (phase === "attackToDefense" && transition) return 1 - clamp(transition.remaining / transition.duration, 0, 1);
+      if (phase === "defenseToAttack" && transition) return clamp(transition.remaining / transition.duration, 0, 1); return 0;
+    }
+    updateScenePresentation(biome, mix) {
+      const texture = defenseTextures.backgrounds[biome.id]; if (texture && this.defenseBiome !== biome.id) { defenseBackdrop.texture = texture; this.defenseBiome = biome.id; }
+      defenseBackdrop.visible = !!texture; backdrop.alpha = this.phase === "menu" ? .58 : .11 * (1 - mix); defenseBackdrop.alpha = .94 * mix; art.alpha = actorLayer.alpha = 1 - mix; defenseLayer.alpha = mix;
+      if (shipSprite) { const reduced = S.settings.reducedEffects, targetX = this.run?.carriageX ?? W / 2; shipSprite.visible = mix > .001; shipSprite.x = W / 2 + (targetX - W / 2) * mix; shipSprite.y = 1080; shipSprite.width = shipSprite.height = 76 + 78 * mix; shipSprite.rotation = reduced ? 0 : Math.sin(performance.now() * .004) * .025 * mix; shipSprite.alpha = .72 + .28 * mix; }
+    }
     render() {
-      art.clear(); const biome = this.run ? D.biomeById[this.levelSpec().biome] : D.BIOMES[0];
+      art.clear(); defenseArt.clear(); const biome = this.run ? D.biomeById[this.levelSpec().biome] : D.BIOMES[0], mix = this.run ? this.phaseVisualMix() : 0; this.updateScenePresentation(biome, mix);
       art.rect(0, 0, W, H).fill({ color: biome.bottom, alpha: .72 });
       for (let y = 160; y < H; y += 72) art.moveTo(38, y).lineTo(W - 38, y).stroke({ width: 1, color: biome.accent, alpha: .08 });
       if (!this.run) return;
@@ -343,7 +359,7 @@
       this.aprons.forEach((body) => { const points = body.getUserData().points.flat(); art.poly(points).fill({ color: 0x071219, alpha: .98 }).stroke({ width: 4, color: biome.accent, alpha: .62 }); });
       if (this.drain) { const [x, y, width, height] = this.drain.getUserData().rect; art.roundRect(x, y, width, height, 10).fill({ color: 0x000206, alpha: 1 }).stroke({ width: 2, color: 0xff536b, alpha: .42 }); }
       this.renderTable(biome);
-      if (this.phase === "defense" || this.phase === "defenseToAttack" || (this.phase === "pause" && ["defense", "defenseToAttack"].includes(this.phaseBeforePause))) this.renderDefense(biome); else this.renderAttack(biome);
+      this.renderAttack(biome); if (mix > .001) this.renderDefense(biome);
       this.particles.forEach((p) => art.circle(p.x, p.y, p.size).fill({ color: p.color, alpha: clamp(p.life, 0, 1) }));
     }
     renderTable(biome) {
@@ -383,6 +399,7 @@
     flipperContactSpeed(body, worldPoint) { const data = body.getUserData(), dx = worldPoint.x - data.pivot.x, dy = worldPoint.y - data.pivot.y; return Math.abs(body.getAngularVelocity()) * Math.hypot(dx, dy); }
     drawBody(body, fill, stroke) { const points = this.bodyPolygon(body); if (points.length < 6 || points.some((value) => !Number.isFinite(value))) return; art.poly(points).fill({ color: fill, alpha: .95 }).stroke({ width: 3, color: stroke, alpha: 1 }); }
     drawProjectile(p) {
+      const art = defenseArt;
       const color = p.visual === "orb" ? 0x6fdcff : p.visual === "firebolt" ? 0xff8b45 : p.visual === "prism" ? 0xd78aff : 0xff657b;
       if (p.telegraph > 0) {
         const pulse = 1 + Math.sin(p.age * 36) * .12, alpha = .28 + (1 - p.telegraph / .28) * .52;
@@ -402,10 +419,10 @@
       else { art.circle(p.x, p.y, 9).fill({ color, alpha: .95 }).stroke({ width: 2, color: 0xffffff, alpha: .85 }); art.circle(p.x, p.y, 15 + Math.sin(p.age * 9) * 3).stroke({ width: 2, color, alpha: .35 }); }
     }
     renderDefense(biome) {
-      for (const sprite of this.actorSprites.values()) sprite.visible = false;
-      art.rect(0, 0, W, H).fill({ color: 0x25070e, alpha: .18 }); const boss = this.currentBoss();
+      const art = defenseArt; if (!defenseTextures.backgrounds[biome.id]) { art.rect(0, 0, W, H).fill({ color: 0x02060b, alpha: .96 }); for (let i = 0; i < 38; i++) { const x = (i * 197) % W, y = (i * 311) % H; art.circle(x, y, 1 + i % 3).fill({ color: biome.accent, alpha: .18 + i % 4 * .08 }); } }
+      art.rect(0, 0, W, H).fill({ color: 0x25070e, alpha: .12 }); const boss = this.currentBoss();
       if (boss) {
-        const data = boss.getUserData(), def = D.enemyById[data.id], sprite = this.actorSprites.get(boss), hp = clamp(data.hp / data.maxHp, 0, 1), presenter = def.defensePresentation, pulse = Math.sin(performance.now() * .004);
+        const data = boss.getUserData(), def = D.enemyById[data.id], sprite = this.ensureDefenseBossSprite(def), hp = clamp(data.hp / data.maxHp, 0, 1), presenter = def.defensePresentation, pulse = S.settings.reducedEffects ? 0 : Math.sin(performance.now() * .004);
         art.roundRect(170, 138, 380, 326, 24).fill({ color: 0x05080e, alpha: .78 }).stroke({ width: 2, color: def.color, alpha: .4 });
         art.circle(360, 284, presenter.aura + pulse * 7).stroke({ width: 3, color: def.color, alpha: .32 }); art.circle(360, 284, presenter.aura - 18 - pulse * 4).stroke({ width: 1, color: 0xffffff, alpha: .16 });
         if (presenter.telegraph === "grid") for (let x = 230; x <= 490; x += 52) art.moveTo(x, 170).lineTo(x, 404).stroke({ width: 1, color: def.color, alpha: .1 });
@@ -413,11 +430,11 @@
         else if (presenter.telegraph === "furnace") for (let x = 270; x <= 450; x += 45) art.moveTo(x, 410).lineTo(x + pulse * 8, 360).stroke({ width: 5, color: def.color, alpha: .18 });
         else if (presenter.telegraph === "wings") { art.moveTo(360, 284).lineTo(210, 210).stroke({ width: 4, color: def.color, alpha: .2 }); art.moveTo(360, 284).lineTo(510, 210).stroke({ width: 4, color: def.color, alpha: .2 }); }
         else { const start = performance.now() * .001; art.moveTo(360 + Math.cos(start) * 132, 284 + Math.sin(start) * 132).arc(360, 284, 132, start, start + Math.PI * 1.5).stroke({ width: 4, color: def.color, alpha: .28 }); }
-        if (sprite) { sprite.visible = true; sprite.x = 360; sprite.y = 286; sprite.width = presenter.scale; sprite.height = presenter.scale; sprite.alpha = .96; sprite.rotation = Math.sin(performance.now() * .0012) * .025; }
+        if (sprite) { sprite.visible = true; sprite.x = 360; sprite.y = 286; sprite.width = presenter.scale; sprite.height = presenter.scale; sprite.alpha = .96; sprite.rotation = S.settings.reducedEffects ? 0 : Math.sin(performance.now() * .0012) * .025; }
         art.rect(230, 430, 260, 9).fill({ color: 0xffffff, alpha: .12 }); art.rect(230, 430, 260 * hp, 9).fill({ color: def.color, alpha: .9 });
         for (let i = 0; i < (def.phases || 4); i++) art.rect(270 + i * 48, 450, 34, 3).fill({ color: i < this.run.bossPhase ? def.color : 0xffffff, alpha: i < this.run.bossPhase ? .9 : .14 });
-      } else { art.circle(W / 2, 245, 66).fill({ color: 0x260811, alpha: .7 }).stroke({ width: 3, color: 0xff657b, alpha: .5 }); art.poly([360, 205, 402, 268, 318, 268]).stroke({ width: 3, color: 0xff657b, alpha: .7 }); }
-      this.projectiles.forEach((p) => this.drawProjectile(p)); art.roundRect(this.run.carriageX - 76, 1070, 152, 22, 9).fill({ color: 0xeaffff, alpha: .94 }).stroke({ width: 3, color: biome.accent, alpha: 1 }); art.circle(this.run.carriageX, 1081, 8).fill({ color: biome.accent, alpha: .85 });
+      } else { this.clearDefenseBossSprite(); art.circle(W / 2, 245, 66).fill({ color: 0x260811, alpha: .55 }).stroke({ width: 3, color: 0xff657b, alpha: .5 }); art.poly([360, 205, 402, 268, 318, 268]).stroke({ width: 3, color: 0xff657b, alpha: .7 }); }
+      this.projectiles.forEach((p) => this.drawProjectile(p)); const x = this.run.carriageX; art.moveTo(x, 1118).lineTo(x, 1168).stroke({ width: 18, color: biome.accent, alpha: S.settings.reducedEffects ? .18 : .18 + Math.sin(performance.now() * .018) * .08 }); art.circle(x, 1082, 48).stroke({ width: 2, color: biome.accent, alpha: this.run.defenseInvulnerable > 0 ? .9 : .18 }); if (!shipSprite) { art.poly([x, 1036, x + 52, 1116, x, 1096, x - 52, 1116]).fill({ color: 0xdffcff, alpha: .96 }).stroke({ width: 3, color: biome.accent }); art.circle(x, 1082, 10).fill({ color: biome.accent }); }
     }
     pushFloater(x, y, text, color, size) { const label = new X.Text({ text, style: { fontFamily: "Arial", fontSize: size, fontWeight: "800", fill: color, stroke: { color: 0x02060b, width: 4 } } }); label.anchor.set(.5); label.x = x; label.y = y; label.eventMode = "none"; scene.addChild(label); this.floaters.push({ x, y, label, life: .9 }); }
     float(text, body, color, size) { const p = body.getPosition(); this.pushFloater(p.x * SCALE, p.y * SCALE - 20, text, color, size); }

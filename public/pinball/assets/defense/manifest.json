@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "generator": "OpenAI built-in image generation",
+  "workflow": "One generation per asset; spaceship generated on flat chroma-key green, locally matted and despilled; runtime outputs optimized as WebP.",
+  "ship": {
+    "file": "player-ship.webp",
+    "prompt": "Original top-down graphite and silver FLIPSTRIKE interceptor formed from two flipper-like wings, cyan energy core, restrained amber and magenta details, crisp small-scale silhouette, no weapons fire, text, logo, or scenery."
+  },
+  "backgrounds": {
+    "foundry": "Deep-space orbital forge with molten amber reactors, chrome rings, and cyan conduits framing a dark play lane.",
+    "transit": "Violet and cyan prism hyperspace rails and crystalline portals framing a dark vertical play lane.",
+    "abyss": "Black-hole magnetic abyss with obsidian rings and turquoise energy arcs framing open space.",
+    "furnace": "Ruptured sun and orbital furnace refinery with orange vents and dark ceramic machinery.",
+    "citadel": "Monumental crystal-and-graphite space citadel with a white prismatic reactor and crimson energy channels."
+  },
+  "constraints": "Portrait 9:16 stages keep the center and lower third clear for the ship and projectiles; no text, logos, watermarks, ships, enemies, or projectiles in stage art."
+}

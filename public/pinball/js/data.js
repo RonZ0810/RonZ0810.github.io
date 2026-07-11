@@ -48,6 +48,11 @@
       "final-core": "assets/actors/boss-final-core.webp",
     },
   };
+  const DEFENSE_ASSETS = {
+    ship: "assets/defense/player-ship.webp",
+    backgrounds: Object.fromEntries(BIOMES.map((biome) => [biome.id, `assets/defense/stage-${biome.id}.webp`])),
+    manifest: "assets/defense/manifest.json",
+  };
   const VARIANTS = ["I", "II", "III", "IV", "V", "VI", "VII", "OMEGA"];
   const ENEMIES = [];
   ROLE_DEFS.forEach((role, roleIndex) => VARIANTS.forEach((variant, tier) => {
@@ -206,7 +211,7 @@
   const ACHIEVEMENTS = Array.from({ length: 32 }, (_, i) => ({ id: `achievement-${i + 1}`, name: ["FIRST LIGHT", "DEAD CENTER", "NO DRAIN", "CHAIN REACTION", "MASTER BUILDER", "BARRAGE DANCER", "CORE BREAKER", "ASCENDANT"][i % 8] + (i > 7 ? ` ${Math.floor(i / 8) + 1}` : ""), target: (i % 8 + 1) * (Math.floor(i / 8) + 1) }));
   const PATTERNS = ["aim", "lane", "spread", "ring", "cross", "spiral"];
 
-  const content = { VERSION, WORLD: { width: 720, height: 1280, physicsHz: 120 }, BIOMES, DIFFICULTIES, RARITIES, ENEMIES, BOSSES, CARDS, LEVELS, ACHIEVEMENTS, PATTERNS, ACTOR_ASSETS, ROLE_SYSTEMS, TABLE_ELEMENT_TYPES, TABLE_MODULES, ELITE_MODIFIERS };
+  const content = { VERSION, WORLD: { width: 720, height: 1280, physicsHz: 120 }, BIOMES, DIFFICULTIES, RARITIES, ENEMIES, BOSSES, CARDS, LEVELS, ACHIEVEMENTS, PATTERNS, ACTOR_ASSETS, DEFENSE_ASSETS, ROLE_SYSTEMS, TABLE_ELEMENT_TYPES, TABLE_MODULES, ELITE_MODIFIERS };
   content.enemyById = Object.fromEntries([...ENEMIES, ...BOSSES].map((x) => [x.id, x]));
   content.cardById = Object.fromEntries(CARDS.map((x) => [x.id, x]));
   content.biomeById = Object.fromEntries(BIOMES.map((x) => [x.id, x]));
@@ -223,6 +228,7 @@
     if (ENEMIES.some((enemy) => !enemy.movement || !enemy.behavior || !enemy.defensePattern)) errors.push("Enemy behavior metadata is incomplete");
     if (TABLE_MODULES.some((layout) => layout.shotFamilies < 2 || layout.minPassage < 72 || layout.elements.some((element) => !TABLE_ELEMENT_TYPES.includes(element.type)))) errors.push("Invalid table layout constraints");
     if (Object.keys(ACTOR_ASSETS.roles).length !== 12 || Object.keys(ACTOR_ASSETS.bosses).length !== 5) errors.push("Actor asset manifest is incomplete");
+    if (!DEFENSE_ASSETS.ship || Object.keys(DEFENSE_ASSETS.backgrounds).length !== 5 || BIOMES.some((biome) => !DEFENSE_ASSETS.backgrounds[biome.id])) errors.push("Defense asset manifest is incomplete");
     if (BOSSES.some((boss) => !boss.spriteId || !boss.projectileTheme || !boss.defensePresentation)) errors.push("Boss presentation metadata is incomplete");
     CARD_CATEGORIES.forEach(([category, , expected]) => { if (CARDS.filter((card) => card.category === category).length !== expected) errors.push(`Invalid ${category} card count`); });
     RARITY_BUCKETS.forEach(([rarity, expected]) => { if (CARDS.filter((card) => card.rarity === rarity).length !== expected) errors.push(`Invalid ${rarity} rarity count`); });

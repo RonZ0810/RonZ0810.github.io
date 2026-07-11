@@ -171,19 +171,37 @@ test('table and enemy systems remain stable at the target entity budget', async 
   expect(result.enemies).toBeGreaterThanOrEqual(30); expect(result.balls).toBeGreaterThanOrEqual(3); expect(result.finite).toBe(true); expect(result.elapsed).toBeLessThan(2500);
 });
 
-test('actor assets map every enemy and drive boss defense presentation', async ({ page, request }) => {
+test('actor and defense assets map every enemy, biome, and boss presentation', async ({ page, request }) => {
   await page.goto('/pinball/'); await page.waitForFunction(() => !!window.FLIPSTRIKE);
   const assets = await page.evaluate(() => ({ roles: FLIP_DATA.ACTOR_ASSETS.roles, bosses: FLIP_DATA.ACTOR_ASSETS.bosses, mapped: FLIP_DATA.ENEMIES.every((enemy) => !!FLIP_DATA.ACTOR_ASSETS.roles[enemy.spriteId]), themes: FLIP_DATA.BOSSES.map((boss) => boss.projectileTheme), presentations: FLIP_DATA.BOSSES.every((boss) => !!boss.defensePresentation) }));
   expect(Object.keys(assets.roles)).toHaveLength(12); expect(Object.keys(assets.bosses)).toHaveLength(5); expect(assets.mapped).toBe(true); expect(new Set(assets.themes).size).toBe(5); expect(assets.presentations).toBe(true);
-  for (const url of [...Object.values(assets.roles), ...Object.values(assets.bosses)]) expect((await request.get(`/pinball/${url}`)).ok()).toBe(true);
+  const defenseAssets = await page.evaluate(() => FLIP_DATA.DEFENSE_ASSETS);
+  expect(Object.keys(defenseAssets.backgrounds)).toHaveLength(5);
+  for (const url of [...Object.values(assets.roles), ...Object.values(assets.bosses), defenseAssets.ship, ...Object.values(defenseAssets.backgrounds)]) expect((await request.get(`/pinball/${url}`)).ok()).toBe(true);
   await page.evaluate(() => FLIPSTRIKE.startNew(25));
   await expect.poll(() => page.evaluate(() => FLIPSTRIKE.actorSprites.size)).toBe(1);
   await page.evaluate(() => { const ball = FLIPSTRIKE.balls[0]; ball.getUserData().launched = true; ball.setGravityScale(1); ball.setTransform(planck.Vec2(6, 1120 / 60), 0); ball.setLinearVelocity(planck.Vec2(0, 8)); });
   await expect(page.locator('#phase')).toHaveText('BALL LEAKED');
   await page.evaluate(() => { FLIPSTRIKE.run.transition.remaining = .01; });
   await expect(page.locator('#phase')).toContainText('DODGE');
-  const bossUi = await page.evaluate(() => { FLIPSTRIKE.spawnProjectile(); const boss = FLIPSTRIKE.currentBoss(), sprite = FLIPSTRIKE.actorSprites.get(boss); return { visible: sprite.visible, width: sprite.width, visual: FLIPSTRIKE.projectiles[0].visual }; });
-  expect(bossUi.visible).toBe(true); expect(bossUi.width).toBeGreaterThan(250); expect(bossUi.visual).toBe('shard');
+  const bossUi = await page.evaluate(() => { FLIPSTRIKE.spawnProjectile(); FLIPSTRIKE.render(); const sprite = FLIPSTRIKE.defenseBossSprite; return { visible: sprite.visible, width: sprite.width, visual: FLIPSTRIKE.projectiles[0].visual, mix: FLIPSTRIKE.phaseVisualMix() }; });
+  expect(bossUi.visible).toBe(true); expect(bossUi.width).toBeGreaterThan(250); expect(bossUi.visual).toBe('shard'); expect(bossUi.mix).toBe(1);
+});
+
+test('defense expiry clears every projectile before survival and freezes only the normal timer', async ({ page }) => {
+  await page.goto('/pinball/'); await page.waitForFunction(() => !!window.FLIPSTRIKE); await page.evaluate(() => FLIPSTRIKE.startNew(1));
+  const start = await page.evaluate(() => {
+    FLIPSTRIKE.beginDefense(); FLIPSTRIKE.run.time = 90; FLIPSTRIKE.run.defenseTime = .01; FLIPSTRIKE.run.shotSequence = 0;
+    FLIPSTRIKE.projectiles = [{ x: 100, y: 500, vx: 0, vy: 80, age: 0, telegraph: 0, hit: false, penalty: 2, shape: 'aim', visual: 'shard' }];
+    return FLIPSTRIKE.run.time;
+  });
+  await expect.poll(() => page.evaluate(() => FLIPSTRIKE.run.defenseState)).toBe('clearing');
+  await page.waitForTimeout(220);
+  const cleanup = await page.evaluate(() => ({ phase: FLIPSTRIKE.phase, count: FLIPSTRIKE.projectiles.length, y: FLIPSTRIKE.projectiles[0]?.y, time: FLIPSTRIKE.run.time, shots: FLIPSTRIKE.run.shotSequence, transition: FLIPSTRIKE.run.transition }));
+  expect(cleanup.phase).toBe('defense'); expect(cleanup.count).toBe(1); expect(cleanup.y).toBeGreaterThan(500); expect(Math.abs(cleanup.time - start)).toBeLessThan(.03); expect(cleanup.shots).toBe(0); expect(cleanup.transition).toBeNull();
+  await page.evaluate(() => { FLIPSTRIKE.projectiles[0].x = FLIPSTRIKE.run.carriageX; FLIPSTRIKE.projectiles[0].y = 1080; FLIPSTRIKE.projectiles[0].vy = 0; FLIPSTRIKE.run.defenseInvulnerable = 0; });
+  await expect.poll(() => page.evaluate(() => FLIPSTRIKE.run.time)).toBeLessThan(start - 1.9);
+  await expect(page.locator('#transition-title')).toHaveText('WAVE SURVIVED');
 });
 
 test('card library exposes all production definitions', async ({ page }) => {
@@ -220,6 +238,8 @@ test('draining the last active ball consumes one ball and starts defense', async
   await expect(page.locator('#phase')).toHaveText('BALL LEAKED');
   await expect(page.locator('#balls')).toHaveText('BALLS 4');
   expect(await page.evaluate(() => ({ duration: FLIPSTRIKE.run.transition.duration, nextPhase: FLIPSTRIKE.run.transition.nextPhase, controlsLocked: document.querySelector('#touch-controls').classList.contains('locked') }))).toEqual({ duration: 2, nextPhase: 'defense', controlsLocked: true });
+  const morph = await page.evaluate(() => { FLIPSTRIKE.run.transition.remaining = 1; FLIPSTRIKE.render(); return FLIPSTRIKE.phaseVisualMix(); });
+  expect(morph).toBeCloseTo(.5, 2);
   await page.evaluate(() => { FLIPSTRIKE.run.transition.remaining = .01; });
   await expect(page.locator('#phase')).toContainText('DODGE');
 });
