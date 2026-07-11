@@ -26,6 +26,22 @@ test('full campaign content validates and level one starts cleanly', async ({ pa
   await expect(page.locator('#difficulty')).toHaveText('VERY EASY');
   await expect(page.locator('#wave')).toHaveText('ENCOUNTER 1 / 1');
   await expect(page.locator('#phase')).toHaveText('PLUNGER 18%');
+  const paddles = await page.evaluate(() => FLIPSTRIKE.flippers.map((body) => FLIPSTRIKE.bodyPolygon(body)));
+  expect(paddles).toHaveLength(2);
+  expect(paddles.every((polygon) => polygon.length === 8 && polygon.every(Number.isFinite))).toBe(true);
+  const rails = await page.evaluate(() => FLIPSTRIKE.walls.map((body) => body.getUserData().line));
+  expect(rails).toHaveLength(8);
+  expect(rails.every((line) => line.length === 4 && line.every(Number.isFinite))).toBe(true);
+  const flipperPhysics = await page.evaluate(() => {
+    const body = FLIPSTRIKE.flippers[0], data = body.getUserData();
+    body.setAngularVelocity(-12);
+    const nearHinge = planck.Vec2(data.pivot.x + .2, data.pivot.y);
+    const tip = body.getWorldPoint(planck.Vec2(data.halfLength * 2, 0));
+    return { type: body.getType(), motor: data.joint.isMotorEnabled(), near: FLIPSTRIKE.flipperContactSpeed(body, nearHinge), tip: FLIPSTRIKE.flipperContactSpeed(body, tip) };
+  });
+  expect(flipperPhysics.type).toBe('dynamic');
+  expect(flipperPhysics.motor).toBe(true);
+  expect(flipperPhysics.tip).toBeGreaterThan(flipperPhysics.near * 8);
   await page.keyboard.down('Space');
   await page.waitForTimeout(180);
   await page.keyboard.up('Space');

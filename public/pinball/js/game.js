@@ -41,7 +41,7 @@
   class GameDirector {
     constructor() {
       this.audio = new AudioSystem(); this.saveService = new S.SaveService(); this.phase = "menu"; this.running = false; this.world = null; this.run = null;
-      this.balls = []; this.enemies = []; this.flippers = []; this.bumpers = []; this.projectiles = []; this.particles = []; this.floaters = [];
+      this.balls = []; this.enemies = []; this.flippers = []; this.bumpers = []; this.walls = []; this.projectiles = []; this.particles = []; this.floaters = [];
       this.keys = { left: false, right: false }; this.touch = { left: false, right: false }; this.dragX = null; this.accumulator = 0; this.last = performance.now(); this.hitCooldown = new Map();
       this.bindInput(); this.menu(); app.ticker.add((ticker) => this.frame(ticker.deltaMS / 1000));
     }
@@ -78,16 +78,24 @@
     }
     levelSpec() { return D.LEVELS[Math.min(100, this.run.level - 1)]; }
     createWorld() {
-      this.world = new P.World({ gravity: P.Vec2(0, 20) }); this.balls = []; this.enemies = []; this.flippers = []; this.bumpers = []; this.hitCooldown.clear();
-      const edge = (x1, y1, x2, y2, tag = "wall") => { const body = this.world.createBody(); body.setUserData({ type: tag }); body.createFixture(P.Edge(P.Vec2(x1 / SCALE, y1 / SCALE), P.Vec2(x2 / SCALE, y2 / SCALE)), { friction: .05, restitution: .62 }); return body; };
+      this.world = new P.World({ gravity: P.Vec2(0, 20) }); this.balls = []; this.enemies = []; this.flippers = []; this.flipperJoints = []; this.bumpers = []; this.walls = []; this.hitCooldown.clear(); this.flipperGround = this.world.createBody();
+      const edge = (x1, y1, x2, y2, tag = "wall") => { const body = this.world.createBody(); body.setUserData({ type: tag, line: [x1, y1, x2, y2] }); body.createFixture(P.Edge(P.Vec2(x1 / SCALE, y1 / SCALE), P.Vec2(x2 / SCALE, y2 / SCALE)), { friction: .05, restitution: .62 }); this.walls.push(body); return body; };
       edge(42, 142, 42, 1165); edge(678, 142, 678, 1165); edge(42, 142, 160, 76); edge(678, 142, 560, 76); edge(42, 1165, 238, 1245); edge(678, 1165, 482, 1245); edge(238, 1245, 290, 1265); edge(482, 1245, 430, 1265);
       [[180, 520, 34], [360, 445, 38], [540, 520, 34]].forEach(([x, y, radius], i) => { const body = this.world.createBody({ position: P.Vec2(x / SCALE, y / SCALE) }); body.setUserData({ type: "bumper", index: i, pulse: 0 }); body.createFixture(P.Circle(radius / SCALE), { restitution: 1.4 }); this.bumpers.push(body); });
-      this.flippers = [this.makeFlipper(245, 1090, false), this.makeFlipper(475, 1090, true)];
-      if (this.run.cards["flipper-05"]) this.flippers.push(this.makeFlipper(570, 770, true, .7));
+      this.flippers = [this.makeFlipper(158, 1090, false), this.makeFlipper(562, 1090, true)];
+      if (this.run.cards["flipper-05"]) this.flippers.push(this.makeFlipper(620, 770, true, .7));
       this.world.on("begin-contact", (contact) => this.onContact(contact));
     }
-    makeFlipper(x, y, right, scale = 1) { const body = this.world.createKinematicBody({ position: P.Vec2(x / SCALE, y / SCALE), angle: right ? -.16 : .16 }); body.setUserData({ type: "flipper", right, rest: right ? -.16 : .16, active: right ? .52 : -.52 }); body.createFixture(P.Box((86 * scale * this.flipperLength()) / SCALE, 13 / SCALE), { density: 4, friction: .9, restitution: .25 }); return body; }
+    makeFlipper(x, y, right, scale = 1) {
+      const halfLength = 86 * scale * this.flipperLength() / SCALE, halfHeight = 13 / SCALE, rest = right ? .16 : -.16, travel = .52;
+      const body = this.world.createDynamicBody({ position: P.Vec2(x / SCALE, y / SCALE), angle: rest, angularDamping: 3, allowSleep: false });
+      body.setUserData({ type: "flipper", right, pivot: { x: x / SCALE, y: y / SCALE }, halfLength, rest, travel });
+      body.createFixture(P.Box(halfLength, halfHeight, P.Vec2(right ? -halfLength : halfLength, 0), 0), { density: 4, friction: .9, restitution: .18 });
+      const joint = this.world.createJoint(P.RevoluteJoint({ enableMotor: true, motorSpeed: 0, maxMotorTorque: 1500 * this.flipperPower(), enableLimit: true, lowerAngle: right ? 0 : -travel, upperAngle: right ? travel : 0 }, this.flipperGround, body, P.Vec2(x / SCALE, y / SCALE)));
+      body.getUserData().joint = joint; this.flipperJoints.push(joint); return body;
+    }
     flipperLength() { return 1 + this.effectCount("flipperLength") * .08; }
+    flipperPower() { return 1 + this.effectCount("flipperPower") * .14; }
     spawnEncounter(saved = null) {
       const spec = this.levelSpec(), ids = spec.encounters[this.run.encounter] || spec.encounters[0];
       (saved || ids.map((id, i) => ({ id, hp: null, maxHp: null, p: { x: (160 + (i % 4) * 135) / SCALE, y: (260 + Math.floor(i / 4) * 125) / SCALE }, phase: 1 }))).forEach((item, index) => {
@@ -170,7 +178,7 @@
     }
     updateAttack(dt) {
       const left = this.keys.left || this.touch.left, right = this.keys.right || this.touch.right;
-      this.flippers.forEach((body) => { const data = body.getUserData(), active = data.right ? right : left, target = active ? data.active : data.rest, angle = body.getAngle() + (target - body.getAngle()) * Math.min(1, dt * 34); body.setTransform(body.getPosition(), angle); });
+      this.flippers.forEach((body) => { const data = body.getUserData(), active = data.right ? right : left, direction = data.right ? 1 : -1; data.joint.setMotorSpeed(direction * (active ? 28 * this.flipperPower() : -18)); data.joint.setMaxMotorTorque((active ? 1500 : 900) * this.flipperPower()); });
       if (this.run.plungerHeld) this.run.plunger = clamp((this.run.plunger || 18) + dt * 70, 18, 100);
       this.enemies.forEach((body, i) => { const data = body.getUserData(), def = D.enemyById[data.id], pos = body.getPosition(); data.t += dt; data.flash = Math.max(0, data.flash - dt); const anchorX = (160 + (i % 4) * 135) / SCALE, targetX = anchorX + Math.sin(data.t * (def.speed || 25) / 22) * (38 + def.tier * 2) / SCALE; body.setLinearVelocity(P.Vec2((targetX - pos.x) * 2.2, Math.cos(data.t * .8) * .12)); });
       this.world.step(STEP); this.balls.forEach((body) => { const velocity = body.getLinearVelocity(), speed = velocity.length(); if (speed > 29) body.setLinearVelocity(velocity.mul(29 / speed)); });
@@ -221,8 +229,8 @@
       art.clear(); const biome = this.run ? D.biomeById[this.levelSpec().biome] : D.BIOMES[0];
       art.rect(0, 0, W, H).fill({ color: biome.bottom, alpha: .72 });
       for (let y = 160; y < H; y += 72) art.moveTo(38, y).lineTo(W - 38, y).stroke({ width: 1, color: biome.accent, alpha: .08 });
-      art.moveTo(42, 142).lineTo(42, 1165).lineTo(238, 1245).stroke({ width: 5, color: biome.accent, alpha: .5 }); art.moveTo(678, 142).lineTo(678, 1165).lineTo(482, 1245).stroke({ width: 5, color: biome.accent, alpha: .5 });
       if (!this.run) return;
+      this.walls.forEach((body) => { const [x1, y1, x2, y2] = body.getUserData().line; art.moveTo(x1, y1).lineTo(x2, y2).stroke({ width: 5, color: biome.accent, alpha: .52 }); });
       if (this.phase === "defense" || (this.phase === "pause" && this.phaseBeforePause === "defense")) this.renderDefense(biome); else this.renderAttack(biome);
       this.particles.forEach((p) => art.circle(p.x, p.y, p.size).fill({ color: p.color, alpha: clamp(p.life, 0, 1) }));
     }
@@ -232,7 +240,9 @@
       this.enemies.forEach((body) => { const data = body.getUserData(), def = D.enemyById[data.id], p = body.getPosition(), radius = def.radius || 62, hp = clamp(data.hp / data.maxHp, 0, 1); art.circle(p.x * SCALE, p.y * SCALE, radius + (data.flash ? 7 : 0)).fill({ color: data.flash ? 0xffffff : 0x07151c, alpha: .96 }).stroke({ width: def.level ? 5 : 3, color: def.color, alpha: 1 }); art.poly([p.x * SCALE, p.y * SCALE - radius * .52, p.x * SCALE + radius * .48, p.y * SCALE + radius * .35, p.x * SCALE - radius * .48, p.y * SCALE + radius * .35]).stroke({ width: 2, color: def.color, alpha: .78 }); art.rect(p.x * SCALE - radius, p.y * SCALE - radius - 18, radius * 2, 6).fill({ color: 0xffffff, alpha: .11 }); art.rect(p.x * SCALE - radius, p.y * SCALE - radius - 18, radius * 2 * hp, 6).fill({ color: def.color, alpha: data.flash ? 1 : .45 }); });
       this.balls.forEach((body) => { const p = body.getPosition(), radius = body.getFixtureList().getShape().getRadius() * SCALE; art.circle(p.x * SCALE, p.y * SCALE, radius + 8).fill({ color: biome.accent, alpha: .12 }); art.circle(p.x * SCALE, p.y * SCALE, radius).fill({ color: 0xeaffff, alpha: 1 }).stroke({ width: 3, color: biome.accent, alpha: 1 }); });
     }
-    drawBody(body, fill, stroke) { const fixture = body.getFixtureList(), shape = fixture.getShape(), half = shape.m_hx * SCALE, height = shape.m_hy * SCALE, p = body.getPosition(), a = body.getAngle(), c = Math.cos(a), s = Math.sin(a), points = [[-half, -height], [half, -height], [half, height], [-half, height]].flatMap(([x, y]) => [p.x * SCALE + x * c - y * s, p.y * SCALE + x * s + y * c]); art.poly(points).fill({ color: fill, alpha: .95 }).stroke({ width: 3, color: stroke, alpha: 1 }); }
+    bodyPolygon(body) { const shape = body.getFixtureList()?.getShape(), vertices = shape?.m_vertices || []; return vertices.flatMap((vertex) => { const world = body.getWorldPoint(vertex); return [world.x * SCALE, world.y * SCALE]; }); }
+    flipperContactSpeed(body, worldPoint) { const data = body.getUserData(), dx = worldPoint.x - data.pivot.x, dy = worldPoint.y - data.pivot.y; return Math.abs(body.getAngularVelocity()) * Math.hypot(dx, dy); }
+    drawBody(body, fill, stroke) { const points = this.bodyPolygon(body); if (points.length < 6 || points.some((value) => !Number.isFinite(value))) return; art.poly(points).fill({ color: fill, alpha: .95 }).stroke({ width: 3, color: stroke, alpha: 1 }); }
     renderDefense(biome) { art.rect(0, 0, W, H).fill({ color: 0x25070e, alpha: .18 }); art.circle(W / 2, 245, 62).stroke({ width: 2, color: 0xff657b, alpha: .4 }); this.projectiles.forEach((p) => { if (p.shape === "cross") { art.rect(p.x - 9, p.y - 2, 18, 4).fill({ color: 0xff8291 }); art.rect(p.x - 2, p.y - 9, 4, 18).fill({ color: 0xff8291 }); } else art.circle(p.x, p.y, p.shape === "ring" ? 10 : 7).fill({ color: 0xff657b, alpha: .95 }).stroke({ width: 2, color: 0xffd8dd, alpha: .8 }); }); art.roundRect(this.run.carriageX - 76, 1070, 152, 22, 9).fill({ color: 0xeaffff, alpha: .94 }).stroke({ width: 3, color: biome.accent, alpha: 1 }); }
     pushFloater(x, y, text, color, size) { const label = new X.Text({ text, style: { fontFamily: "Arial", fontSize: size, fontWeight: "800", fill: color, stroke: { color: 0x02060b, width: 4 } } }); label.anchor.set(.5); label.x = x; label.y = y; label.eventMode = "none"; scene.addChild(label); this.floaters.push({ x, y, label, life: .9 }); }
     float(text, body, color, size) { const p = body.getPosition(); this.pushFloater(p.x * SCALE, p.y * SCALE - 20, text, color, size); }
