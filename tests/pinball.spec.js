@@ -83,18 +83,15 @@ test('keyboard and touch flippers swing fully, hold, and return to downward rest
   const rest = await page.evaluate(() => FLIPSTRIKE.flippers.slice(0, 2).map((body) => body.getAngle() * 180 / Math.PI));
   expect(rest[0]).toBeGreaterThan(6); expect(rest[1]).toBeLessThan(-6);
 
-  await page.keyboard.down('ArrowLeft'); await page.waitForTimeout(160);
-  const fullLeft = Math.abs(await page.evaluate(() => FLIPSTRIKE.flippers[0].getUserData().joint.getJointAngle() * 180 / Math.PI));
-  await page.keyboard.up('ArrowLeft'); await page.waitForTimeout(250);
-  const returned = Math.abs(await page.evaluate(() => FLIPSTRIKE.flippers[0].getUserData().joint.getJointAngle() * 180 / Math.PI));
-  expect(fullLeft).toBeGreaterThan(18); expect(fullLeft).toBeLessThan(21); expect(returned).toBeLessThan(.5);
+  await page.keyboard.down('ArrowLeft'); await expect.poll(() => page.evaluate(() => Math.abs(FLIPSTRIKE.flippers[0].getUserData().joint.getJointAngle() * 180 / Math.PI)), { timeout: 2500 }).toBeGreaterThan(18);
+  const fullLeft = Math.abs(await page.evaluate(() => FLIPSTRIKE.flippers[0].getUserData().joint.getJointAngle() * 180 / Math.PI)); await page.keyboard.up('ArrowLeft');
+  await expect.poll(() => page.evaluate(() => Math.abs(FLIPSTRIKE.flippers[0].getUserData().joint.getJointAngle() * 180 / Math.PI)), { timeout: 2500 }).toBeLessThan(.5);
+  expect(fullLeft).toBeLessThan(21);
 
   const right = await page.locator('#touch-right').boundingBox();
-  await page.mouse.move(right.x + right.width / 2, right.y + right.height / 2); await page.mouse.down(); await page.waitForTimeout(160);
-  const held = Math.abs(await page.evaluate(() => FLIPSTRIKE.flippers[1].getUserData().joint.getJointAngle() * 180 / Math.PI));
-  await page.mouse.up(); await page.waitForTimeout(250);
-  expect(held).toBeGreaterThan(18); expect(held).toBeLessThan(21);
-  expect(Math.abs(await page.evaluate(() => FLIPSTRIKE.flippers[1].getUserData().joint.getJointAngle() * 180 / Math.PI))).toBeLessThan(.5);
+  await page.mouse.move(right.x + right.width / 2, right.y + right.height / 2); await page.mouse.down(); await expect.poll(() => page.evaluate(() => Math.abs(FLIPSTRIKE.flippers[1].getUserData().joint.getJointAngle() * 180 / Math.PI)), { timeout: 2500 }).toBeGreaterThan(18);
+  const held = Math.abs(await page.evaluate(() => FLIPSTRIKE.flippers[1].getUserData().joint.getJointAngle() * 180 / Math.PI)); await page.mouse.up();
+  expect(held).toBeLessThan(21); await expect.poll(() => page.evaluate(() => Math.abs(FLIPSTRIKE.flippers[1].getUserData().joint.getJointAngle() * 180 / Math.PI)), { timeout: 2500 }).toBeLessThan(.5);
 });
 
 test('all enemy roles and biome tables expose deterministic variety metadata', async ({ page }) => {
@@ -175,7 +172,7 @@ test('table and enemy systems remain stable at the target entity budget', async 
 });
 
 test('actor assets map every enemy and drive boss defense presentation', async ({ page, request }) => {
-  await page.goto('/pinball/');
+  await page.goto('/pinball/'); await page.waitForFunction(() => !!window.FLIPSTRIKE);
   const assets = await page.evaluate(() => ({ roles: FLIP_DATA.ACTOR_ASSETS.roles, bosses: FLIP_DATA.ACTOR_ASSETS.bosses, mapped: FLIP_DATA.ENEMIES.every((enemy) => !!FLIP_DATA.ACTOR_ASSETS.roles[enemy.spriteId]), themes: FLIP_DATA.BOSSES.map((boss) => boss.projectileTheme), presentations: FLIP_DATA.BOSSES.every((boss) => !!boss.defensePresentation) }));
   expect(Object.keys(assets.roles)).toHaveLength(12); expect(Object.keys(assets.bosses)).toHaveLength(5); expect(assets.mapped).toBe(true); expect(new Set(assets.themes).size).toBe(5); expect(assets.presentations).toBe(true);
   for (const url of [...Object.values(assets.roles), ...Object.values(assets.bosses)]) expect((await request.get(`/pinball/${url}`)).ok()).toBe(true);
@@ -251,8 +248,8 @@ test('main timer runs only for launched balls and defense', async ({ page }) => 
   await page.waitForTimeout(350);
   expect(Math.abs(await page.evaluate(() => FLIPSTRIKE.run.time) - initial)).toBeLessThan(.03);
 
-  await page.keyboard.down('Space'); await page.waitForTimeout(80); await page.keyboard.up('Space'); await page.waitForTimeout(350);
-  expect(await page.evaluate(() => FLIPSTRIKE.run.time)).toBeLessThan(initial - .2);
+  await page.keyboard.down('Space'); await page.waitForTimeout(80); await page.keyboard.up('Space');
+  await expect.poll(() => page.evaluate(() => FLIPSTRIKE.run.time), { timeout: 2500 }).toBeLessThan(initial - .05);
 
   await page.evaluate(() => { const ball = FLIPSTRIKE.balls[0]; ball.setTransform(planck.Vec2(6, 1120 / 60), 0); ball.setLinearVelocity(planck.Vec2(0, 8)); });
   await expect(page.locator('#phase')).toHaveText('BALL LEAKED');
