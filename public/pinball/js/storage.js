@@ -1,6 +1,6 @@
 (function () {
   "use strict";
-  const PREFIX = "flipstrike.v3";
+  const PREFIX = "flipstrike.v4";
   const read = (key, fallback) => { try { return { ...fallback, ...JSON.parse(localStorage.getItem(`${PREFIX}.${key}`) || "{}") }; } catch { return { ...fallback }; } };
   const write = (key, value) => { try { localStorage.setItem(`${PREFIX}.${key}`, JSON.stringify(value)); } catch {} };
   class SaveService {
@@ -24,8 +24,9 @@
     }
   }
   const legacy = (() => { try { return JSON.parse(localStorage.getItem("flipstrike.stats.v1") || "null"); } catch { return null; } })();
-  const progress = read("progress", { version: 3, unlockedLevel: Math.max(1, Math.min(101, (legacy?.bestLevel || 0) + 1)), endlessUnlocked: !!legacy?.endlessUnlocked, achievements: [], discovered: [], seenObstacles: [], best: {}, endlessBest: 0 });
+  const progress = read("progress", { version: 4, unlockedLevel: 1, endlessUnlocked: false, achievements: [], discovered: [], seenObstacles: [], best: {}, endlessBest: 0 });
   if (!Array.isArray(progress.seenObstacles)) progress.seenObstacles = [];
-  const settings = read("settings", { muted: false, music: .55, effects: .7, reducedEffects: matchMedia("(prefers-reduced-motion: reduce)").matches, vibration: true });
+  const oldSettings = (() => { try { return JSON.parse(localStorage.getItem("flipstrike.v3.settings") || "null"); } catch { return null; } })();
+  const settings = read("settings", { muted: false, music: .55, effects: .7, reducedEffects: matchMedia("(prefers-reduced-motion: reduce)").matches, vibration: true, ...(oldSettings || {}) });
   window.FlipStorage = { SaveService, progress, settings, saveProgress: () => write("progress", progress), saveSettings: () => write("settings", settings) };
 })();

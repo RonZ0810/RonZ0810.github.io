@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const VERSION = 3;
+  const VERSION = 4;
   const BIOMES = [
     { id: "foundry", name: "NEON FOUNDRY", range: [1, 20], accent: 0x57e7ff, accentCss: "#57e7ff", top: 0x071b29, bottom: 0x02070d, mechanic: "Charged bumpers", material: "chrome" },
     { id: "transit", name: "PRISM TRANSIT", range: [21, 40], accent: 0xb67cff, accentCss: "#b67cff", top: 0x17102c, bottom: 0x05040e, mechanic: "Shield lanes", material: "glass" },
@@ -11,11 +11,9 @@
   ];
 
   const DIFFICULTIES = [
-    { id: "green", name: "VERY EASY", color: "#6ce6a6" },
-    { id: "yellow", name: "MEDIUM", color: "#f7d16b" },
-    { id: "orange", name: "HARD", color: "#ff9a59" },
-    { id: "red", name: "VERY HARD", color: "#ff646f" },
-    { id: "darkred", name: "EXTREME", color: "#bd3456" },
+    { id: "tutorial", name: "TUTORIAL", color: "#83f0c0", range: [1, 5] }, { id: "easy", name: "EASY", color: "#6ce6a6", range: [6, 20] },
+    { id: "medium", name: "MEDIUM", color: "#f7d16b", range: [21, 40] }, { id: "hard", name: "HARD", color: "#ff9a59", range: [41, 60] },
+    { id: "very-hard", name: "VERY HARD", color: "#ff646f", range: [61, 80] }, { id: "extreme", name: "EXTREME", color: "#bd3456", range: [81, 101] },
   ];
 
   const ROLE_DEFS = [
@@ -201,23 +199,37 @@
 
   function hash(seed) { let x = seed | 0; x ^= x << 13; x ^= x >>> 17; x ^= x << 5; return x >>> 0; }
   function biomeFor(level) { return BIOMES.find((b) => level >= b.range[0] && level <= b.range[1]) || BIOMES[4]; }
-  function difficultyFor(level) { return DIFFICULTIES[Math.min(4, Math.floor((level - 1) / 20))]; }
-  function encounterFor(level, encounter) {
-    const count = Math.min(8, 2 + Math.floor(level / 14) + encounter);
-    return Array.from({ length: count }, (_, i) => ENEMIES[(hash(level * 4099 + encounter * 97 + i * 13) % ENEMIES.length)].id);
+  function difficultyFor(level) { return DIFFICULTIES.find((difficulty) => level >= difficulty.range[0] && level <= difficulty.range[1]) || DIFFICULTIES.at(-1); }
+  const ROLE_UNLOCKS = { drifter: 1, patrol: 3, shield: 7, armor: 11, sniper: 21, artillery: 26, healer: 31, support: 36, splitter: 41, ghost: 46, summoner: 51, reflector: 56 };
+  const OBSTACLE_UNLOCKS = { bumper: 1, slingshot: 4, spinner: 7, rollover: 10, gate: 13, captive: 16, ramp: 21, kicker: 31, magnet: 41, vent: 61, cover: 66, crusher: 71 };
+  const ROLE_COSTS = { drifter: 1, patrol: 1.1, shield: 1.4, armor: 1.5, sniper: 1.6, artillery: 1.8, healer: 2, support: 1.8, splitter: 2, ghost: 2.2, summoner: 2.4, reflector: 2.4 };
+  const OBSTACLE_COSTS = { bumper: 1, slingshot: 1, spinner: 1, rollover: .6, gate: .8, captive: 1.4, ramp: 1.5, kicker: 1.6, magnet: 2, cover: 1.4, vent: 2.2, crusher: 2.5 };
+  const ELEMENT_BLUEPRINTS = Object.fromEntries(TABLE_ELEMENT_TYPES.map((type) => [type, TABLE_MODULES.flatMap((layout) => layout.elements).filter((element) => element.type === type)]));
+  function blueprintCenter(element) { if (Number.isFinite(element.x) && Number.isFinite(element.y)) return [element.x, element.y]; if (element.rect) return [element.rect[0] + element.rect[2] / 2, element.rect[1] + element.rect[3] / 2]; if (element.line) return [(element.line[0] + element.line[2]) / 2, (element.line[1] + element.line[3]) / 2]; if (element.rail) return [(element.rail[0] + element.rail[2]) / 2, (element.rail[1] + element.rail[3]) / 2]; if (element.rails) { const points = element.rails.flatMap((line) => [[line[0], line[1]], [line[2], line[3]]]); return [points.reduce((sum, point) => sum + point[0], 0) / points.length, points.reduce((sum, point) => sum + point[1], 0) / points.length]; } return [360, 500]; }
+  function obstacleCap(level) { return level <= 3 ? 1 : level <= 6 ? 2 : level <= 10 ? 3 : level <= 20 ? 4 : level <= 40 ? 5 : level <= 80 ? 6 : 7; }
+  function challengeRng(seed) { let state = seed >>> 0 || 1; return () => { state = hash(state); return state / 4294967296; }; }
+  function generateChallenge(level, attemptSeed) {
+    const random = challengeRng(attemptSeed), boss = BOSSES.find((item) => item.level === level), maxTier = Math.min(8, 1 + Math.floor((level - 1) / 14)), encounterCount = boss ? 1 : level <= 20 ? 1 : level <= 60 ? 2 : 3, enemyCount = level === 1 ? 1 : Math.min(8, 1 + Math.floor((level - 1) / 12)), rolePool = Object.keys(ROLE_UNLOCKS).filter((role) => ROLE_UNLOCKS[role] <= level), encounters = [];
+    for (let encounter = 0; encounter < encounterCount; encounter++) { const ids = []; for (let i = 0; i < enemyCount + Math.min(encounter, 1); i++) { const role = level === 1 ? "drifter" : rolePool[Math.floor(random() * rolePool.length)], tier = level === 1 ? 1 : 1 + Math.floor(random() * maxTier); ids.push(`${role}-${tier}`); } encounters.push(ids); }
+    if (boss) encounters.splice(0, encounters.length, [boss.id]);
+    const unlockedTypes = Object.keys(OBSTACLE_UNLOCKS).filter((type) => OBSTACLE_UNLOCKS[type] <= level), milestoneType = Object.keys(OBSTACLE_UNLOCKS).find((type) => OBSTACLE_UNLOCKS[type] === level), elementCount = boss ? 0 : level === 1 ? 1 : Math.min(obstacleCap(level), 1 + Math.floor((level - 1) / 4)), chosenTypes = [];
+    if (level === 1) chosenTypes.push("bumper"); else { if (milestoneType) chosenTypes.push(milestoneType); let guard = 0; while (chosenTypes.length < elementCount && guard++ < 100) { const candidate = unlockedTypes[Math.floor(random() * unlockedTypes.length)], hazardCap = level >= 81 ? 3 : 2; if (["vent", "crusher"].includes(candidate) && chosenTypes.filter((type) => ["vent", "crusher"].includes(type)).length >= hazardCap) continue; chosenTypes.push(candidate); } }
+    const blueprintOffsets = {}, blueprintUses = {}, centers = []; const elements = chosenTypes.map((type, index) => { const pool = ELEMENT_BLUEPRINTS[type]; blueprintOffsets[type] ??= Math.floor(random() * pool.length); const use = blueprintUses[type] || 0; let source = pool[(blueprintOffsets[type] + use) % pool.length]; for (let step = 0; step < pool.length; step++) { const candidate = pool[(blueprintOffsets[type] + use + step) % pool.length], center = blueprintCenter(candidate); if (centers.every((other) => Math.hypot(center[0] - other[0], center[1] - other[1]) >= 82)) { source = candidate; break; } } blueprintUses[type] = use + 1; centers.push(blueprintCenter(source)); return { ...structuredClone(source), key: `generated-${index}` }; });
+    const enemyThreat = encounters.flat().reduce((sum, id) => { const enemy = ENEMIES.find((item) => item.id === id); return sum + ROLE_COSTS[enemy?.role || "drifter"] * (1 + ((enemy?.tier || 1) - 1) * .18); }, 0), obstacleThreat = elements.reduce((sum, element) => sum + OBSTACLE_COSTS[element.type], 0), elite = !boss && level >= 10 && level % 5 === 0, eliteModifiers = elite ? Array.from({ length: level >= 55 ? 2 : 1 }, (_, i) => ELITE_MODIFIERS[(Math.floor(random() * ELITE_MODIFIERS.length) + i) % ELITE_MODIFIERS.length]) : [], defenseDuration = Math.min(12, 5 + level * .07), defenseRate = Math.max(.38, .82 - level * .004), defenseThreat = defenseDuration / defenseRate * .08, roleAverage = rolePool.reduce((sum, role) => sum + ROLE_COSTS[role], 0) / rolePool.length, obstacleAverage = unlockedTypes.reduce((sum, type) => sum + OBSTACLE_COSTS[type], 0) / unlockedTypes.length, slotCount = encounters.reduce((sum, encounter) => sum + encounter.length, 0), targetThreatBase = slotCount * roleAverage * (1 + (maxTier - 1) * .12) + elementCount * obstacleAverage + defenseThreat, targetThreat = targetThreatBase * (elite ? 1.15 : 1), desiredEnemyThreat = Math.max(.5, targetThreat / (elite ? 1.15 : 1) - obstacleThreat - defenseThreat), enemyHealthScale = boss ? 1 : desiredEnemyThreat / Math.max(.5, enemyThreat), actualThreat = (enemyThreat * enemyHealthScale + obstacleThreat + defenseThreat) * (elite ? 1.15 : 1);
+    return { version: VERSION, attemptSeed, level, layoutId: `challenge-${attemptSeed}`, name: `${biomeFor(level).name.split(" ")[0]} CONFIG`, difficulty: difficultyFor(level).id, encounters, elements, maxTier, obstacleCap: obstacleCap(level), elite, eliteModifiers, defenseDuration, defenseRate, enemyHealthScale, targetThreat, actualThreat: boss ? targetThreat : actualThreat, threatRatio: boss ? 1 : actualThreat / targetThreat };
   }
   const LEVELS = Array.from({ length: 101 }, (_, index) => {
     const level = index + 1, boss = BOSSES.find((item) => item.level === level), biome = biomeFor(level);
-    const encounterCount = boss ? 1 : Math.min(3, 1 + Math.floor((level - 1) / 34));
+    const encounterCount = boss ? 1 : level <= 20 ? 1 : level <= 60 ? 2 : 3;
     const quarter = Math.min(3, Math.floor((level - 1) / 25));
     const layoutPool = TABLE_MODULES.filter((layout) => layout.biome === biome.id), layout = layoutPool[(level - biome.range[0] + hash(biome.range[0] * 6151) % layoutPool.length) % layoutPool.length], elite = !boss && level % 5 === 0;
     return {
       id: `level-${String(level).padStart(3, "0")}`, level, seed: hash(0xf11f57 ^ level * 7919),
       name: boss ? boss.name : `${biome.name.split(" ")[0]} ${String(level).padStart(3, "0")}`,
-      biome: biome.id, difficulty: difficultyFor(level).id, timer: Math.min(210, 82 + level * 1.15 + encounterCount * 12),
+      biome: biome.id, difficulty: difficultyFor(level).id, timer: Math.min(240, 70 + level * .8 + encounterCount * 18),
       balls: [5, 4, 4, 3][quarter], continuous: level % 10 === 0 && !boss,
-      elite, eliteModifiers: elite ? Array.from({ length: Math.min(2, 1 + Math.floor(level / 55)) }, (_, i) => ELITE_MODIFIERS[hash(level * 97 + i * 31) % ELITE_MODIFIERS.length]) : [], boss: boss?.id || null,
-      encounters: boss ? [[boss.id]] : Array.from({ length: encounterCount }, (_, i) => encounterFor(level, i)),
+      elite: !boss && level >= 10 && level % 5 === 0, eliteModifiers: [], boss: boss?.id || null,
+      encounters: boss ? [[boss.id]] : [],
       layoutId: layout.id, layoutVariant: hash(level * 3571 + 19),
     };
   });
@@ -225,7 +237,7 @@
   const ACHIEVEMENTS = Array.from({ length: 32 }, (_, i) => ({ id: `achievement-${i + 1}`, name: ["FIRST LIGHT", "DEAD CENTER", "NO DRAIN", "CHAIN REACTION", "MASTER BUILDER", "BARRAGE DANCER", "CORE BREAKER", "ASCENDANT"][i % 8] + (i > 7 ? ` ${Math.floor(i / 8) + 1}` : ""), target: (i % 8 + 1) * (Math.floor(i / 8) + 1) }));
   const PATTERNS = ["aim", "lane", "spread", "ring", "cross", "spiral"];
 
-  const content = { VERSION, WORLD: { width: 720, height: 1280, physicsHz: 120 }, BIOMES, DIFFICULTIES, RARITIES, ENEMIES, BOSSES, CARDS, LEVELS, ACHIEVEMENTS, PATTERNS, ACTOR_ASSETS, DEFENSE_ASSETS, ROLE_SYSTEMS, TABLE_ELEMENT_TYPES, OBSTACLE_TUTORIALS, TABLE_MODULES, ELITE_MODIFIERS };
+  const content = { VERSION, WORLD: { width: 720, height: 1280, physicsHz: 120 }, BIOMES, DIFFICULTIES, RARITIES, ENEMIES, BOSSES, CARDS, LEVELS, ACHIEVEMENTS, PATTERNS, ACTOR_ASSETS, DEFENSE_ASSETS, ROLE_SYSTEMS, ROLE_UNLOCKS, TABLE_ELEMENT_TYPES, OBSTACLE_TUTORIALS, OBSTACLE_UNLOCKS, ROLE_COSTS, OBSTACLE_COSTS, TABLE_MODULES, ELITE_MODIFIERS, generateChallenge };
   content.enemyById = Object.fromEntries([...ENEMIES, ...BOSSES].map((x) => [x.id, x]));
   content.cardById = Object.fromEntries(CARDS.map((x) => [x.id, x]));
   content.biomeById = Object.fromEntries(BIOMES.map((x) => [x.id, x]));
@@ -249,7 +261,8 @@
     RARITY_BUCKETS.forEach(([rarity, expected]) => { if (CARDS.filter((card) => card.rarity === rarity).length !== expected) errors.push(`Invalid ${rarity} rarity count`); });
     if (new Set([...ENEMIES, ...BOSSES, ...CARDS, ...LEVELS].map((x) => x.id)).size !== ENEMIES.length + BOSSES.length + CARDS.length + LEVELS.length) errors.push("Content IDs must be unique");
     LEVELS.forEach((level) => level.encounters.flat().forEach((id) => { if (!content.enemyById[id]) errors.push(`Unknown enemy ${id}`); }));
-    LEVELS.forEach((level) => { if (!content.tableById[level.layoutId]) errors.push(`Unknown table ${level.layoutId}`); if (level.eliteModifiers.length > 2) errors.push(`Too many elite modifiers at level ${level.level}`); });
+    LEVELS.forEach((level) => { if (!content.tableById[level.layoutId]) errors.push(`Unknown table ${level.layoutId}`); });
+    [1, 4, 10, 21, 41, 61, 81, 101].forEach((level) => { const challenge = generateChallenge(level, hash(level * 997 + 7)); if (challenge.threatRatio < .95 || challenge.threatRatio > 1.05) errors.push(`Threat budget out of range at level ${level}`); });
     return errors;
   };
   window.FLIP_DATA = Object.freeze(content);

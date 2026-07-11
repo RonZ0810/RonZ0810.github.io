@@ -25,6 +25,7 @@ FLIPSTRIKE is a portrait-first pinball action roguelike implemented from the pro
 - Full-scene defense transformations with a dedicated player starfighter and five biome-specific space battlefields
 - Persistent first-encounter tutorials pause and spotlight each new table obstacle before safely returning to play
 - Vortex kickers capture the ball, telegraph a seeded safe direction and strength, then fire with a randomized upward launch
+- Version-4 campaign progression rerolls ordinary attempts inside strict threat budgets, gates enemy roles and obstacle mechanics by level, and begins level 1 with one tier-1 Drifter and one bumper
 - The level timer runs only while a launched ball is active or during the defense phase; plunger setup, intermissions, drafts, pauses, and relaunches are timer-safe
 - Twelve illustrated enemy roles with biome/tier treatments, five unique boss presenters, themed hostile projectiles, and a visually distinct energy-ring player ball
 - Three-card XP drafts, stack limits, rarity weights, abilities, consumables, rerolls, and level-local builds

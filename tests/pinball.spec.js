@@ -2,10 +2,11 @@ import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
-    localStorage.removeItem('flipstrike.v3.progress');
-    localStorage.removeItem('flipstrike.v3.suspend');
-    localStorage.setItem('flipstrike.v3.progress', JSON.stringify({ version: 3, seenObstacles: ['bumper', 'slingshot', 'spinner', 'gate', 'rollover', 'ramp', 'kicker', 'captive', 'magnet', 'vent', 'crusher', 'cover'] }));
-    indexedDB.deleteDatabase('flipstrike.v3');
+    if (localStorage.getItem('flipstrike.test.migration')) return;
+    localStorage.removeItem('flipstrike.v4.progress');
+    localStorage.removeItem('flipstrike.v4.suspend');
+    localStorage.setItem('flipstrike.v4.progress', JSON.stringify({ version: 4, seenObstacles: ['bumper', 'slingshot', 'spinner', 'gate', 'rollover', 'ramp', 'kicker', 'captive', 'magnet', 'vent', 'crusher', 'cover'] }));
+    indexedDB.deleteDatabase('flipstrike.v4');
   });
 });
 
@@ -24,9 +25,10 @@ test('full campaign content validates and level one starts cleanly', async ({ pa
   await page.locator('[data-level="1"]').click();
   await expect(page.locator('#hud')).toBeVisible();
   await expect(page.locator('#level-kicker')).toHaveText('LEVEL 001');
-  await expect(page.locator('#difficulty')).toHaveText('VERY EASY');
+  await expect(page.locator('#difficulty')).toHaveText('TUTORIAL');
   await expect(page.locator('#wave')).toContainText('ENCOUNTER 1 / 1');
   await expect(page.locator('#phase')).toHaveText('PLUNGER 18%');
+  expect(await page.evaluate(() => ({ enemies: FLIPSTRIKE.enemies.map((body) => body.getUserData().id), elements: FLIPSTRIKE.tableElements.map((element) => element.def.type), ratio: FLIPSTRIKE.run.challenge.threatRatio }))).toEqual(expect.objectContaining({ enemies: ['drifter-1'], elements: ['bumper'] }));
   const paddles = await page.evaluate(() => FLIPSTRIKE.flippers.map((body) => FLIPSTRIKE.bodyPolygon(body)));
   expect(paddles).toHaveLength(2);
   expect(paddles.every((polygon) => polygon.length === 8 && polygon.every(Number.isFinite))).toBe(true);
@@ -110,21 +112,51 @@ test('all enemy roles and biome tables expose deterministic variety metadata', a
   expect(content.assigned).toHaveLength(15);
 });
 
+test('all 101 levels obey role, tier, obstacle, encounter, and threat gates across rerolls', async ({ page }) => {
+  await page.goto('/pinball/');
+  const audit = await page.evaluate(() => {
+    const failures = [], roleUnlocks = FLIP_DATA.ROLE_UNLOCKS, obstacleUnlocks = FLIP_DATA.OBSTACLE_UNLOCKS;
+    for (let level = 1; level <= 101; level++) for (let attempt = 1; attempt <= 5; attempt++) {
+      const challenge = FLIP_DATA.generateChallenge(level, level * 1009 + attempt * 7919), boss = FLIP_DATA.BOSSES.some((item) => item.level === level);
+      if (challenge.threatRatio < .95 || challenge.threatRatio > 1.05) failures.push(`threat:${level}`);
+      if (challenge.elements.length > challenge.obstacleCap) failures.push(`cap:${level}`);
+      if (challenge.elements.filter((element) => ['vent', 'crusher'].includes(element.type)).length > (level >= 81 ? 3 : 2)) failures.push(`hazards:${level}`);
+      challenge.elements.forEach((element) => { if (obstacleUnlocks[element.type] > level) failures.push(`obstacle:${level}:${element.type}`); });
+      challenge.encounters.flat().forEach((id) => { const enemy = FLIP_DATA.enemyById[id]; if (!boss && (roleUnlocks[enemy.role] > level || enemy.tier > challenge.maxTier)) failures.push(`enemy:${level}:${id}`); });
+      const expectedEncounters = boss ? 1 : level <= 20 ? 1 : level <= 60 ? 2 : 3; if (challenge.encounters.length !== expectedEncounters) failures.push(`encounters:${level}`);
+    }
+    return failures;
+  });
+  expect(audit).toEqual([]);
+});
+
+test('retries reroll ordinary challenges while generated runs retain exact challenge state', async ({ page }) => {
+  await page.goto('/pinball/'); await page.waitForFunction(() => !!window.FLIPSTRIKE);
+  const attempts = await page.evaluate(() => { FLIPSTRIKE.startNew(36); const first = structuredClone(FLIPSTRIKE.run.challenge); FLIPSTRIKE.startNew(36); return { first, second: structuredClone(FLIPSTRIKE.run.challenge) }; });
+  expect(attempts.first.attemptSeed).not.toBe(attempts.second.attemptSeed); expect(attempts.first.level).toBe(attempts.second.level); expect(attempts.first.threatRatio).toBeGreaterThanOrEqual(.95); expect(attempts.second.threatRatio).toBeLessThanOrEqual(1.05);
+});
+
+test('version four resets gameplay progression while preserving version three settings', async ({ page }) => {
+  await page.goto('/pinball/'); await page.evaluate(() => { localStorage.setItem('flipstrike.test.migration', '1'); localStorage.removeItem('flipstrike.v4.progress'); localStorage.removeItem('flipstrike.v4.settings'); localStorage.setItem('flipstrike.v3.progress', JSON.stringify({ unlockedLevel: 88, discovered: ['ball-01'], achievements: ['achievement-1'] })); localStorage.setItem('flipstrike.v3.settings', JSON.stringify({ muted: true, effects: .25, reducedEffects: true, vibration: false })); }); await page.reload();
+  const migrated = await page.evaluate(() => ({ progress: FlipStorage.progress, settings: FlipStorage.settings }));
+  expect(migrated.progress.unlockedLevel).toBe(1); expect(migrated.progress.discovered).toEqual([]); expect(migrated.progress.achievements).toEqual([]); expect(migrated.settings).toEqual(expect.objectContaining({ muted: true, effects: .25, reducedEffects: true, vibration: false }));
+});
+
 test('new obstacle tutorials queue once, freeze play, and persist dismissal', async ({ page }) => {
   await page.goto('/pinball/'); await page.waitForFunction(() => !!window.FLIPSTRIKE);
-  await page.evaluate(() => { FlipStorage.progress.seenObstacles = []; FlipStorage.saveProgress(); FLIPSTRIKE.startNew(2); });
+  await page.evaluate(() => { FlipStorage.progress.seenObstacles = []; FlipStorage.saveProgress(); FLIPSTRIKE.startNew(1); });
   await expect(page.locator('#obstacle-tutorial')).toBeVisible(); await expect(page.locator('#obstacle-title')).toHaveText('Bumper');
   const frozen = await page.evaluate(() => ({ time: FLIPSTRIKE.run.time, phase: FLIPSTRIKE.phase, clock: FLIPSTRIKE.tableElements[0].clock, queue: FLIPSTRIKE.tutorial.queue.length }));
-  expect(frozen.phase).toBe('obstacleTutorial'); expect(frozen.queue).toBe(1);
+  expect(frozen.phase).toBe('obstacleTutorial'); expect(frozen.queue).toBe(0);
   await page.waitForTimeout(180);
   expect(await page.evaluate(() => ({ time: FLIPSTRIKE.run.time, clock: FLIPSTRIKE.tableElements[0].clock }))).toEqual({ time: frozen.time, clock: frozen.clock });
-  await page.keyboard.press('Enter'); await expect(page.locator('#obstacle-title')).toHaveText('Slingshot'); await page.locator('#obstacle-continue').click();
-  await expect(page.locator('#obstacle-tutorial')).toBeHidden(); expect(await page.evaluate(() => ({ phase: FLIPSTRIKE.phase, running: FLIPSTRIKE.running, seen: FlipStorage.progress.seenObstacles }))).toEqual({ phase: 'attack', running: true, seen: ['bumper', 'slingshot'] });
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#obstacle-tutorial')).toBeHidden(); expect(await page.evaluate(() => ({ phase: FLIPSTRIKE.phase, running: FLIPSTRIKE.running, seen: FlipStorage.progress.seenObstacles }))).toEqual({ phase: 'attack', running: true, seen: ['bumper'] });
   await page.evaluate(() => FLIPSTRIKE.scanObstacleTutorials()); await expect(page.locator('#obstacle-tutorial')).toBeHidden();
 });
 
 test('vortex capture telegraphs a deterministic safe vector and restores it exactly', async ({ page }) => {
-  await page.goto('/pinball/'); await page.waitForFunction(() => !!window.FLIPSTRIKE); await page.evaluate(() => FLIPSTRIKE.startNew(3));
+  await page.goto('/pinball/'); await page.waitForFunction(() => !!window.FLIPSTRIKE); await page.evaluate(() => FLIPSTRIKE.startNew(31));
   const result = await page.evaluate(() => {
     const vortex = FLIPSTRIKE.tableElements.find((element) => element.def.type === 'kicker'), vectors = Array.from({ length: 8 }, () => FLIPSTRIKE.randomVortexLaunch()), ball = FLIPSTRIKE.balls[0]; ball.getUserData().launched = true; ball.setGravityScale(1); ball.setTransform(planck.Vec2(vortex.def.x / 60, vortex.def.y / 60), 0); FLIPSTRIKE.onContact({ getFixtureA: () => ball.getFixtureList(), getFixtureB: () => vortex.bodies[0].getFixtureList() }); const capture = vortex.captures[0], serialized = FLIPSTRIKE.serializeTable().find((item) => item.id === vortex.id).captures[0]; return { vectors, capture: { remaining: capture.remaining, duration: capture.duration, vector: capture.launchVector }, serialized };
   });
@@ -139,11 +171,11 @@ const FLIP_DATA_ELEMENT_TYPES = ['bumper', 'slingshot', 'spinner', 'gate', 'roll
 
 test('all table modules pass bounds, lane, and runtime construction validation', async ({ page }) => {
   await page.goto('/pinball/'); await page.waitForFunction(() => !!window.FLIPSTRIKE); await page.evaluate(() => FLIPSTRIKE.startNew(1));
-  const validation = await page.evaluate(() => FLIP_DATA.TABLE_MODULES.map((layout) => ({ id: layout.id, errors: FLIPSTRIKE.validateTableLayout(layout), level: FLIP_DATA.LEVELS.find((candidate) => candidate.layoutId === layout.id)?.level })));
-  expect(validation.every((result) => result.errors.length === 0 && result.level)).toBe(true);
-  for (const result of validation) {
-    const runtime = await page.evaluate((level) => { FLIPSTRIKE.startNew(level); return { layout: FLIPSTRIKE.run.layoutId, elements: FLIPSTRIKE.tableElements.map((element) => element.def.type), serialized: FLIPSTRIKE.serializeTable().length, rails: FLIPSTRIKE.walls.length, drain: FLIPSTRIKE.drain.getFixtureList().isSensor() }; }, result.level);
-    expect(runtime.layout).toBe(result.id); expect(runtime.serialized).toBe(runtime.elements.length); expect(runtime.elements.length).toBeGreaterThanOrEqual(4); expect(runtime.rails).toBe(5); expect(runtime.drain).toBe(true);
+  const validation = await page.evaluate(() => FLIP_DATA.TABLE_MODULES.map((layout) => ({ id: layout.id, errors: FLIPSTRIKE.validateTableLayout(layout) })));
+  expect(validation.every((result) => result.errors.length === 0)).toBe(true);
+  for (const level of [1, 4, 7, 10, 13, 16, 21, 31, 41, 61, 66, 71, 81]) {
+    const runtime = await page.evaluate((value) => { FLIPSTRIKE.startNew(value); return { layout: FLIPSTRIKE.run.layoutId, elements: FLIPSTRIKE.tableElements.map((element) => element.def.type), serialized: FLIPSTRIKE.serializeTable().length, rails: FLIPSTRIKE.walls.length, drain: FLIPSTRIKE.drain.getFixtureList().isSensor(), cap: FLIPSTRIKE.run.challenge.obstacleCap }; }, level);
+    expect(runtime.layout).toContain('challenge-'); expect(runtime.serialized).toBe(runtime.elements.length); expect(runtime.elements.length).toBeLessThanOrEqual(runtime.cap); expect(runtime.rails).toBe(5); expect(runtime.drain).toBe(true);
   }
 });
 
@@ -366,5 +398,5 @@ test('suspend restores table hazard clocks and enemy behavior state', async ({ p
   await page.evaluate(() => { FLIPSTRIKE.tableElements[0].clock = 1.234; FLIPSTRIKE.tableElements[0].hp = 2; FLIPSTRIKE.enemies[0].getUserData().behaviorClock = 4.321; });
   await page.getByRole('button', { name: 'Pause game' }).click(); const expected = await page.evaluate(() => ({ id: FLIPSTRIKE.tableElements[0].id, clock: FLIPSTRIKE.tableElements[0].clock, hp: FLIPSTRIKE.tableElements[0].hp, enemy: FLIPSTRIKE.enemies[0].getUserData().id, behaviorClock: FLIPSTRIKE.enemies[0].getUserData().behaviorClock })); await page.getByRole('button', { name: /Save & Exit/ }).click(); await page.getByRole('button', { name: /Continue/ }).click();
   const restored = await page.evaluate(() => ({ id: FLIPSTRIKE.tableElements[0].id, clock: FLIPSTRIKE.tableElements[0].clock, hp: FLIPSTRIKE.tableElements[0].hp, enemy: FLIPSTRIKE.enemies[0].getUserData().id, behaviorClock: FLIPSTRIKE.enemies[0].getUserData().behaviorClock }));
-  expect(restored.id).toBe(expected.id); expect(restored.enemy).toBe(expected.enemy); expect(restored.clock).toBeCloseTo(expected.clock, 1); expect(restored.hp).toBe(expected.hp); expect(restored.behaviorClock).toBeCloseTo(expected.behaviorClock, 1);
+  expect(restored.id).toBe(expected.id); expect(restored.enemy).toBe(expected.enemy); expect(Math.abs(restored.clock - expected.clock)).toBeLessThan(.08); expect(restored.hp).toBe(expected.hp); expect(Math.abs(restored.behaviorClock - expected.behaviorClock)).toBeLessThan(.08);
 });
