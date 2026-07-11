@@ -1,40 +1,56 @@
-# FLIPSTRIKE V2
+# FLIPSTRIKE
 
-A ten-level roguelike pinball campaign built with Canvas, JavaScript, CSS, and a locally vendored Matter.js runtime.
+FLIPSTRIKE is a portrait-first pinball action roguelike implemented from the production game design baseline.
 
-## Campaign
+## Production content
 
-- Ten ascending levels across the Calibration Array and Ember Foundry
-- Multi-wave encounters, reinforcements, elite enemies, and evolving hazards
-- Mid-boss on Level 5 and a four-phase final boss on Level 10
-- Forty weighted upgrade cards across five rarity tiers
-- Build paths for multiball, precision, ricochet, combo, impact, magnetism, and defense
-- Enemy barrage turns with aimed, lane, spread, and ring projectile patterns
-- Endless mode unlocked after the campaign
-- Seeded encounter variation and one-use browser saves
+- 101 deterministic campaign levels across five biomes
+- Five major bosses, including the four-stage Final Core
+- 96 regular enemy definitions across 12 combat roles
+- 150 upgrade cards with the locked rarity and category distributions
+- 32 cosmetic/skill achievement definitions
+- Endless Mode beginning at Level 102
+- Original production key art plus deterministic procedural card compositions
 
-## Run
+## Game systems
 
-Serve the repository through Vite or another static web server:
+- PixiJS WebGL presentation and Planck.js fixed-step physics at 120 Hz
+- Physics-driven flippers, charged launch, multiball, nudge upgrades, bumpers, and direct-impact combat
+- Drain-triggered attack/defense rhythm: defense begins only after every active ball drains
+- Three-card XP drafts, stack limits, rarity weights, abilities, consumables, rerolls, and level-local builds
+- Keyboard, pointer-drag, and touch controls in a responsive 9:16 frame
+- Versioned browser progress plus one-use IndexedDB suspend saves
+- Howler-managed browser audio context and stored accessibility settings
+
+## Controls
+
+- Left/right flippers: `A` / `D` or Left / Right Arrow
+- Launch: hold and release Space or the Launch touch zone
+- Nudge: Shift after acquiring a nudge card
+- Ability: `Q`
+- Consumable: `E`
+- Defense movement: `A` / `D`, arrows, or horizontal pointer drag
+- Pause: `P` or Escape
+
+## Development
 
 ```powershell
 npm install
 npm run dev
 ```
 
-Open `/pinball/index.html`. The game has no runtime network requirement. Matter.js and its license are stored in `vendor/`.
+Open `/pinball/`. All game runtimes and assets are vendored, so the deployed game has no runtime network requirement.
 
-## Controls
+Run validation with:
 
-- Left flipper / shield movement: `A` or Left Arrow
-- Right flipper / shield movement: `D` or Right Arrow
-- Plunger: hold Space to charge, then release to launch
-- Nudge, after acquiring its card: Shift
-- Pause: `P` or Escape
-- Touch: lower left/right control zones and the Launch button
+```powershell
+npm test
+```
 
-The V2 flippers sit inside the lower guide rails and rotate around fixed outer hinges. A strike impulse exists only during the opening swing, so a held flipper behaves as a physical surface instead of automatically launching every contact.
+## Generated art
 
-## Persistence
+`assets/flipstrike-tower.png` was generated with OpenAI's built-in image generation workflow for this project. Prompt intent: an original portrait neon pinball tower in a dark void, reflective geometric machinery, restrained cyan/amber/magenta bloom, no text, logo, watermark, brands, or copied game assets.
 
-Runs can be saved from the pause or level-complete screen. A saved run is deleted when loaded. Lifetime best level, score, campaign wins, and endless record remain in `localStorage`.
+## Third-party runtimes
+
+PixiJS, Planck.js, and Howler.js are distributed under the MIT License. See `vendor/THIRD-PARTY-LICENSES.txt`.

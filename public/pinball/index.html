@@ -2,52 +2,41 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-  <meta name="theme-color" content="#071015">
-  <meta name="description" content="FLIPSTRIKE — a roguelike pinball ascent.">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#05070d">
+  <meta name="description" content="FLIPSTRIKE - a physics-driven pinball action roguelike.">
   <title>FLIPSTRIKE</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <main id="app" aria-live="polite">
-    <section id="shell" class="shell">
-      <canvas id="game" width="540" height="960" aria-label="FLIPSTRIKE pinball table"></canvas>
-
-      <div id="hud" class="hud hidden" aria-label="Game status">
-        <div class="hud-top">
-          <div class="level-block"><span id="level-kicker">LEVEL 01</span><strong id="level-name">FIRST CONTACT</strong><em id="difficulty">CALM</em></div>
-          <div class="timer-block"><span>TIME</span><strong id="timer">01:10</strong></div>
+  <main id="app">
+    <section id="shell" class="shell" aria-label="FLIPSTRIKE game">
+      <canvas id="game" width="720" height="1280" aria-label="Pinball combat table"></canvas>
+      <header id="hud" class="hud hidden" aria-label="Game status">
+        <div class="hud-primary">
+          <div><span id="level-kicker">LEVEL 001</span><strong id="level-name">NEON FOUNDRY</strong><em id="difficulty">VERY EASY</em></div>
+          <div class="timer"><span>TIME</span><strong id="timer">01:30</strong></div>
         </div>
-        <div class="meters">
-          <div class="meter-row"><span>XP</span><div class="meter"><i id="xp-fill"></i></div><b id="xp-text">0 / 100</b></div>
-          <div class="meter-row danger"><span>CHARGE</span><div class="meter"><i id="charge-fill"></i></div><b id="charge-text">0%</b></div>
-        </div>
-        <div class="hud-bottom">
-          <span id="balls">BALLS 4</span><span id="wave">WAVE 1 / 1</span><span id="combo">COMBO x1.0</span><span id="phase">ATTACK</span>
-        </div>
-      </div>
-
-      <button id="pause-btn" class="icon-button hidden" aria-label="Pause game">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>
-      </button>
-
-      <div id="touch-controls" class="touch-controls hidden" aria-hidden="true">
+        <div class="meter-row"><span>XP</span><div class="meter"><i id="xp-fill"></i></div><b id="xp-text">0 / 100</b></div>
+        <div class="hud-secondary"><span id="balls">BALLS 5</span><span id="wave">ENCOUNTER 1 / 1</span><span id="combo">COMBO x1.0</span><span id="phase">ATTACK</span></div>
+      </header>
+      <button id="pause-btn" class="icon-button hidden" aria-label="Pause game">Ⅱ</button>
+      <div id="abilities" class="abilities hidden" aria-label="Abilities"><button id="ability-q" aria-label="Use primary ability">Q</button><button id="ability-e" aria-label="Use consumable">E</button></div>
+      <div id="touch-controls" class="touch-controls hidden">
         <button id="touch-left" aria-label="Left flipper"><span>LEFT</span></button>
-        <button id="touch-plunge" class="plunge" aria-label="Charge and launch ball"><span>POWER 18%</span></button>
+        <button id="touch-launch" class="launch" aria-label="Charge and launch ball"><span>LAUNCH</span></button>
         <button id="touch-right" aria-label="Right flipper"><span>RIGHT</span></button>
       </div>
-
       <div id="toast" class="toast" role="status"></div>
       <div id="overlay" class="overlay"></div>
-      <div id="rotate" class="rotate-notice hidden">
-        <div class="rotate-mark"><span></span></div>
-        <strong>ROTATE TO ASCEND</strong><p>FLIPSTRIKE is built for portrait play.</p>
-      </div>
+      <div id="rotate" class="rotate-notice hidden"><div class="rotate-mark"></div><strong>ROTATE TO ASCEND</strong><p>FLIPSTRIKE is designed for portrait play.</p></div>
     </section>
   </main>
-
-  <script src="vendor/matter.min.js"></script>
+  <script src="vendor/pixi.min.js"></script>
+  <script src="vendor/planck.min.js"></script>
+  <script src="vendor/howler.min.js"></script>
   <script src="js/data.js"></script>
+  <script src="js/storage.js"></script>
   <script src="js/game.js"></script>
 </body>
 </html>
