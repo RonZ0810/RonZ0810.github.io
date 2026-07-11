@@ -7,6 +7,8 @@ FLIPSTRIKE is a portrait-first pinball action roguelike implemented from the pro
 - 101 deterministic campaign levels across five biomes
 - Five major bosses, including the four-stage Final Core
 - 96 regular enemy definitions across 12 combat roles
+- Twelve deterministic role controllers covering rails, waypoint patrols, perches, formations, orbiting, summoning, splitting, and telegraphed phase movement
+- Fifteen seeded handcrafted tables across five biome families
 - 150 upgrade cards with the locked rarity and category distributions
 - 32 cosmetic/skill achievement definitions
 - Endless Mode beginning at Level 102
@@ -18,7 +20,7 @@ FLIPSTRIKE is a portrait-first pinball action roguelike implemented from the pro
 - Bounded servo flippers swing immediately through their full 20-degree travel, hold while pressed, and return to their downward rest angle on release; contact speed still scales from soft hinge contacts to powerful tip shots
 - Collision-backed lower aprons connect to both flipper hinges and feed a non-rebounding central drain
 - A continuous collision-backed upper rail closes the playfield so high-energy shots cannot escape above the table
-- Physics-driven flippers, charged launch, multiball, nudge upgrades, bumpers, and direct-impact combat
+- Physics-driven flippers, charged launch, multiball, nudge upgrades, and direct-impact combat across bumpers, slingshots, spinners, gates, rollovers, ramps, kickers, captive balls, magnets, vents, crushers, and breakable cover
 - Drain-triggered attack/defense rhythm with two-second `BALL LEAKED` and `WAVE SURVIVED` intermissions
 - The level timer runs only while a launched ball is active or during the defense phase; plunger setup, intermissions, drafts, pauses, and relaunches are timer-safe
 - Twelve illustrated enemy roles with biome/tier treatments, five unique boss presenters, themed hostile projectiles, and a visually distinct energy-ring player ball
