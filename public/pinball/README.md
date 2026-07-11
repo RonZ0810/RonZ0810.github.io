@@ -15,11 +15,13 @@ FLIPSTRIKE is a portrait-first pinball action roguelike implemented from the pro
 ## Game systems
 
 - PixiJS WebGL presentation and Planck.js fixed-step physics at 120 Hz
-- Motorized revolute-joint flippers: contact speed scales with distance from the hinge, producing soft near-pivot taps and powerful tip shots
+- Bounded servo flippers swing immediately through their full 20-degree travel, hold while pressed, and return to their downward rest angle on release; contact speed still scales from soft hinge contacts to powerful tip shots
 - Collision-backed lower aprons connect to both flipper hinges and feed a non-rebounding central drain
+- A continuous collision-backed upper rail closes the playfield so high-energy shots cannot escape above the table
 - Physics-driven flippers, charged launch, multiball, nudge upgrades, bumpers, and direct-impact combat
-- Drain-triggered attack/defense rhythm: defense begins only after every active ball drains
-- The level timer runs only while a launched ball is active or during the defense phase; plunger and relaunch setup are timer-safe
+- Drain-triggered attack/defense rhythm with two-second `BALL LEAKED` and `WAVE SURVIVED` intermissions
+- The level timer runs only while a launched ball is active or during the defense phase; plunger setup, intermissions, drafts, pauses, and relaunches are timer-safe
+- Twelve illustrated enemy roles with biome/tier treatments, five unique boss presenters, themed hostile projectiles, and a visually distinct energy-ring player ball
 - Three-card XP drafts, stack limits, rarity weights, abilities, consumables, rerolls, and level-local builds
 - Keyboard, pointer-drag, and touch controls in a responsive 9:16 frame
 - Versioned browser progress plus one-use IndexedDB suspend saves
@@ -52,7 +54,7 @@ npm test
 
 ## Generated art
 
-`assets/flipstrike-tower.png` was generated with OpenAI's built-in image generation workflow for this project. Prompt intent: an original portrait neon pinball tower in a dark void, reflective geometric machinery, restrained cyan/amber/magenta bloom, no text, logo, watermark, brands, or copied game assets.
+`assets/flipstrike-tower.png` and the 17 transparent WebP files in `assets/actors/` were generated with OpenAI's built-in image generation workflow for this project. The actors use original neon biomechanical pinball silhouettes with role-specific weapons, armor, shields, and boss cores. Procedural vector fallbacks remain available if a texture cannot load. Generation metadata and prompt summaries are recorded in `assets/actors/manifest.json`.
 
 ## Third-party runtimes
 

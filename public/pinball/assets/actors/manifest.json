@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "generator": "OpenAI built-in image generation",
+  "workflow": "One generation per asset; flat chroma-key background; local soft-matte removal and despill; 512x512 WebP runtime output.",
+  "sharedPrompt": "Original polished hard-surface 3D FLIPSTRIKE game sprite, front three-quarter orthographic view, coherent futuristic neon arcade visual language, single centered machine, crisp readable silhouette, no text, logo, watermark, character, or scenery.",
+  "roles": {
+    "drifter": "Compact hovering patrol drone with cyan core and swept stabilizer fins.",
+    "patrol": "Horizontal arrowhead patrol machine with twin thrusters and blue-violet sensor.",
+    "shield": "Guardian with a broad amber hexagonal energy shield and visible central core.",
+    "armor": "Heavy layered graphite bastion with breakable seams and red-orange reactor.",
+    "sniper": "Narrow diamond precision machine with long emitter and magenta targeting lens.",
+    "artillery": "Broad floating platform with three plasma mortar tubes and orange reactor.",
+    "healer": "White graphite repair machine with segmented halo, three arms, and turquoise core.",
+    "support": "Three-petal broadcast relay with blue conduits and compact silver chassis.",
+    "summoner": "Dark circular portal frame with fabrication claws and violet energy core.",
+    "splitter": "Three interlocking triangular segments around a bright coral core.",
+    "ghost": "Broken crescent phase frame with void gaps and pale-blue energy fins.",
+    "reflector": "Mirrored chrome pinwheel vanes around a gold-blue prism lens."
+  },
+  "bosses": {
+    "architect": "Monumental construction machine with wall-building arms and amber blueprint panels.",
+    "polar-core": "Opposing magnetic crescents around a suspended cyan-white reactor.",
+    "rupture-beast": "Mechanical furnace beast with crusher limbs, cracked armor, and volcanic core.",
+    "ascendant": "Apex machine with four weapon wings, crimson halos, and diamond core.",
+    "final-core": "Four transforming concentric rings around a multi-spectrum prismatic reactor."
+  }
+}

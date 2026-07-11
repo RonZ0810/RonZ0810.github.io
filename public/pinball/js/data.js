@@ -26,12 +26,20 @@
     ["summoner", "FORGEMIND", "ring", { summoner: true }], ["splitter", "SPLINTER", "spread", { splitter: true }],
     ["ghost", "PHANTOM", "aim", { ghost: true }], ["reflector", "MIRROR", "lane", { reflector: true }],
   ];
+  const ACTOR_ASSETS = {
+    roles: Object.fromEntries(ROLE_DEFS.map(([id]) => [id, `assets/actors/enemy-${id}.webp`])),
+    bosses: {
+      architect: "assets/actors/boss-architect.webp", "polar-core": "assets/actors/boss-polar-core.webp",
+      "rupture-beast": "assets/actors/boss-rupture-beast.webp", ascendant: "assets/actors/boss-ascendant.webp",
+      "final-core": "assets/actors/boss-final-core.webp",
+    },
+  };
   const VARIANTS = ["I", "II", "III", "IV", "V", "VI", "VII", "OMEGA"];
   const ENEMIES = [];
   ROLE_DEFS.forEach((role, roleIndex) => VARIANTS.forEach((variant, tier) => {
     const id = `${role[0]}-${tier + 1}`;
     ENEMIES.push({
-      id, role: role[0], name: `${role[1]} ${variant}`, pattern: role[2], tier: tier + 1,
+      id, role: role[0], spriteId: role[0], materialVariant: tier % BIOMES.length, name: `${role[1]} ${variant}`, pattern: role[2], tier: tier + 1,
       hp: Math.round(34 * (1 + tier * .36) * (1 + roleIndex * .035)),
       radius: 19 + (roleIndex % 4) * 2 + Math.floor(tier / 3),
       speed: 22 + (roleIndex % 3) * 9 + tier * 3,
@@ -42,11 +50,11 @@
   }));
 
   const BOSSES = [
-    { id: "architect", name: "THE ARCHITECT", level: 25, hp: 1800, radius: 62, pattern: "walls", color: 0xf6d785 },
-    { id: "polar-core", name: "THE POLAR CORE", level: 50, hp: 3600, radius: 66, pattern: "magnets", color: 0x73e9ff },
-    { id: "rupture-beast", name: "THE RUPTURE BEAST", level: 75, hp: 5800, radius: 72, pattern: "vents", color: 0xff834f },
-    { id: "ascendant", name: "THE ASCENDANT MACHINE", level: 100, hp: 8800, radius: 77, pattern: "hybrid", color: 0xff5c83 },
-    { id: "final-core", name: "THE FINAL CORE", level: 101, hp: 12000, radius: 84, pattern: "final", color: 0xffffff, phases: 4 },
+    { id: "architect", spriteId: "architect", name: "THE ARCHITECT", level: 25, hp: 1800, radius: 62, pattern: "walls", projectileTheme: "shard", defensePresentation: { scale: 292, aura: 146, telegraph: "grid" }, color: 0xf6d785 },
+    { id: "polar-core", spriteId: "polar-core", name: "THE POLAR CORE", level: 50, hp: 3600, radius: 66, pattern: "magnets", projectileTheme: "orb", defensePresentation: { scale: 304, aura: 152, telegraph: "polarity" }, color: 0x73e9ff },
+    { id: "rupture-beast", spriteId: "rupture-beast", name: "THE RUPTURE BEAST", level: 75, hp: 5800, radius: 72, pattern: "vents", projectileTheme: "firebolt", defensePresentation: { scale: 314, aura: 158, telegraph: "furnace" }, color: 0xff834f },
+    { id: "ascendant", spriteId: "ascendant", name: "THE ASCENDANT MACHINE", level: 100, hp: 8800, radius: 77, pattern: "hybrid", projectileTheme: "beam", defensePresentation: { scale: 318, aura: 162, telegraph: "wings" }, color: 0xff5c83 },
+    { id: "final-core", spriteId: "final-core", name: "THE FINAL CORE", level: 101, hp: 12000, radius: 84, pattern: "final", projectileTheme: "prism", defensePresentation: { scale: 326, aura: 168, telegraph: "rings" }, color: 0xffffff, phases: 4 },
   ];
 
   const CARD_CATEGORIES = [
@@ -117,7 +125,7 @@
   const ACHIEVEMENTS = Array.from({ length: 32 }, (_, i) => ({ id: `achievement-${i + 1}`, name: ["FIRST LIGHT", "DEAD CENTER", "NO DRAIN", "CHAIN REACTION", "MASTER BUILDER", "BARRAGE DANCER", "CORE BREAKER", "ASCENDANT"][i % 8] + (i > 7 ? ` ${Math.floor(i / 8) + 1}` : ""), target: (i % 8 + 1) * (Math.floor(i / 8) + 1) }));
   const PATTERNS = ["aim", "lane", "spread", "ring", "cross", "spiral"];
 
-  const content = { VERSION, WORLD: { width: 720, height: 1280, physicsHz: 120 }, BIOMES, DIFFICULTIES, RARITIES, ENEMIES, BOSSES, CARDS, LEVELS, ACHIEVEMENTS, PATTERNS };
+  const content = { VERSION, WORLD: { width: 720, height: 1280, physicsHz: 120 }, BIOMES, DIFFICULTIES, RARITIES, ENEMIES, BOSSES, CARDS, LEVELS, ACHIEVEMENTS, PATTERNS, ACTOR_ASSETS };
   content.enemyById = Object.fromEntries([...ENEMIES, ...BOSSES].map((x) => [x.id, x]));
   content.cardById = Object.fromEntries(CARDS.map((x) => [x.id, x]));
   content.biomeById = Object.fromEntries(BIOMES.map((x) => [x.id, x]));
@@ -128,6 +136,8 @@
     if (ENEMIES.length !== 96) errors.push("Enemy library must contain 96 types");
     if (CARDS.length !== 150) errors.push("Card library must contain 150 cards");
     if (BOSSES.length !== 5) errors.push("Campaign must contain five major bosses");
+    if (Object.keys(ACTOR_ASSETS.roles).length !== 12 || Object.keys(ACTOR_ASSETS.bosses).length !== 5) errors.push("Actor asset manifest is incomplete");
+    if (BOSSES.some((boss) => !boss.spriteId || !boss.projectileTheme || !boss.defensePresentation)) errors.push("Boss presentation metadata is incomplete");
     CARD_CATEGORIES.forEach(([category, , expected]) => { if (CARDS.filter((card) => card.category === category).length !== expected) errors.push(`Invalid ${category} card count`); });
     RARITY_BUCKETS.forEach(([rarity, expected]) => { if (CARDS.filter((card) => card.rarity === rarity).length !== expected) errors.push(`Invalid ${rarity} rarity count`); });
     if (new Set([...ENEMIES, ...BOSSES, ...CARDS, ...LEVELS].map((x) => x.id)).size !== ENEMIES.length + BOSSES.length + CARDS.length + LEVELS.length) errors.push("Content IDs must be unique");
