@@ -112,6 +112,25 @@ test('all enemy roles and biome tables expose deterministic variety metadata', a
   expect(content.assigned).toHaveLength(15);
 });
 
+test('all 96 enemy variants expose stable motion profiles, seeded parameters, and defense sequences', async ({ page }) => {
+  await page.goto('/pinball/'); await page.waitForFunction(() => !!window.FLIPSTRIKE);
+  const metadata = await page.evaluate(() => ({ valid: FLIP_DATA.ENEMIES.every((enemy) => enemy.motionProfile?.id && enemy.motionThreat >= 1 && enemy.defenseSequence?.length), signatures: FLIP_DATA.ENEMIES.map((enemy) => `${enemy.role}:${enemy.motionProfile.id}`), families: [...new Set(FLIP_DATA.ENEMIES.map((enemy) => enemy.motionProfile.id))] }));
+  expect(metadata.valid).toBe(true); expect(new Set(metadata.signatures).size).toBe(96); expect(metadata.families).toEqual(['steady', 'reverse', 'weave', 'burst', 'altitude', 'feint', 'alternating', 'omega']);
+  const seeded = await page.evaluate(() => { FLIPSTRIKE.startNew(81); const first = FLIPSTRIKE.motionStateFor(FLIP_DATA.enemyById['drifter-8'], 0); FLIPSTRIKE.startNew(81); const second = FLIPSTRIKE.motionStateFor(FLIP_DATA.enemyById['drifter-8'], 0); return { first, second }; });
+  expect(seeded.first.motionSeed).not.toBe(seeded.second.motionSeed); expect(seeded.first.motionSpeed).toBeGreaterThanOrEqual(.92); expect(seeded.first.motionSpeed).toBeLessThanOrEqual(1.08);
+});
+
+test('next level destroys prior damage labels and stale encounter callbacks', async ({ page }) => {
+  await page.goto('/pinball/'); await page.waitForFunction(() => !!window.FLIPSTRIKE); await page.evaluate(() => FLIPSTRIKE.startNew(1));
+  await page.evaluate(() => { FLIPSTRIKE.pushFloater(360, 500, '999', 0xffffff, 22); window.__oldDamageLabel = FLIPSTRIKE.floaters[0].label; FLIPSTRIKE.levelComplete(); });
+  await page.getByRole('button', { name: /Next Level/ }).click();
+  const cleanup = await page.evaluate(() => ({ tracked: FLIPSTRIKE.floaters.length, destroyed: window.__oldDamageLabel.destroyed, parent: window.__oldDamageLabel.parent, level: FLIPSTRIKE.run.level }));
+  expect(cleanup).toEqual({ tracked: 0, destroyed: true, parent: null, level: 2 });
+  await page.evaluate(() => { FLIPSTRIKE.startNew(21); FLIPSTRIKE.encounterCleared(); FLIPSTRIKE.startNew(22); }); await page.waitForTimeout(650);
+  expect(await page.evaluate(() => ({ level: FLIPSTRIKE.run.level, encounter: FLIPSTRIKE.run.encounter, actual: FLIPSTRIKE.enemies.map((enemy) => enemy.getUserData().id), expected: FLIPSTRIKE.run.challenge.encounters[0] }))).toEqual(expect.objectContaining({ level: 22, encounter: 0 }));
+  expect(await page.evaluate(() => FLIPSTRIKE.enemies.map((enemy) => enemy.getUserData().id))).toEqual(await page.evaluate(() => FLIPSTRIKE.run.challenge.encounters[0]));
+});
+
 test('all 101 levels obey role, tier, obstacle, encounter, and threat gates across rerolls', async ({ page }) => {
   await page.goto('/pinball/');
   const audit = await page.evaluate(() => {
