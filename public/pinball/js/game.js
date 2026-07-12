@@ -46,7 +46,7 @@
   class GameDirector {
     constructor() {
       this.audio = new AudioSystem(); this.saveService = new S.SaveService(); this.phase = "menu"; this.running = false; this.world = null; this.run = null;
-      this.balls = []; this.enemies = []; this.flippers = []; this.bumpers = []; this.walls = []; this.aprons = []; this.mounts = []; this.tableElements = []; this.drain = null; this.projectiles = []; this.particles = []; this.floaters = []; this.actorSprites = new Map(); this.defenseBossSprite = null; this.defenseBossId = null; this.defenseFormationSprites = []; this.defenseFormationKey = ""; this.defenseBiome = null;
+      this.balls = []; this.enemies = []; this.flippers = []; this.bumpers = []; this.walls = []; this.aprons = []; this.mounts = []; this.tableElements = []; this.drain = null; this.projectiles = []; this.particles = []; this.floaters = []; this.actorSprites = new Map(); this.defenseBossSprite = null; this.defenseBossId = null; this.defenseFormationSprites = []; this.defenseBiome = null;
       this.keys = { left: false, right: false }; this.touch = { left: false, right: false }; this.dragX = null; this.accumulator = 0; this.last = performance.now(); this.hitCooldown = new Map(); this.tutorial = { queue: [], current: null, resumePhase: null, resumeRunning: false }; this.generationToken = 0; this.slowMotionTimer = null; this.draftTimer = null;
       this.bindInput(); this.menu(); app.ticker.add((ticker) => this.frame(ticker.deltaMS / 1000));
     }
@@ -164,7 +164,7 @@
     flipperTargetAngle(active, travel) { return active ? travel : 0; }
     clearActorSprites() { for (const sprite of this.actorSprites?.values?.() || []) sprite.destroy(); this.actorSprites?.clear?.(); this.clearDefenseBossSprite(); this.clearDefenseFormation(); }
     clearDefenseBossSprite() { this.defenseBossSprite?.destroy?.(); this.defenseBossSprite = null; this.defenseBossId = null; }
-    clearDefenseFormation() { this.defenseFormationSprites?.forEach((entry) => entry.sprite?.destroy?.()); this.defenseFormationSprites = []; this.defenseFormationKey = ""; }
+    clearDefenseFormation() { this.defenseFormationSprites?.forEach((entry) => entry.sprite?.destroy?.()); this.defenseFormationSprites = []; }
     createActorSprite(body, def) { const texture = actorTextures[def.level ? `boss:${def.spriteId}` : `role:${def.spriteId}`]; if (!texture) return null; const sprite = new X.Sprite(texture); sprite.anchor.set(.5); sprite.eventMode = "none"; actorLayer.addChild(sprite); this.actorSprites.set(body, sprite); return sprite; }
     destroyActorSprite(body) { const sprite = this.actorSprites.get(body); if (sprite) sprite.destroy(); this.actorSprites.delete(body); }
     currentBoss() { return this.enemies.find((body) => D.enemyById[body.getUserData().id]?.level) || null; }

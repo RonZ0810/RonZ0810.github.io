@@ -97,7 +97,7 @@ test('keyboard and touch flippers swing fully, hold, and return to downward rest
   expect(held).toBeLessThan(21); await expect.poll(() => page.evaluate(() => Math.abs(FLIPSTRIKE.flippers[1].getUserData().joint.getJointAngle() * 180 / Math.PI)), { timeout: 2500 }).toBeLessThan(.5);
 });
 
-test('all enemy roles and biome tables expose deterministic variety metadata', async ({ page }) => {
+test('campaign content, generation gates, and seeded rerolls remain valid', async ({ page }) => {
   await page.goto('/pinball/');
   const content = await page.evaluate(() => ({
     roles: [...new Set(FLIP_DATA.ENEMIES.map((enemy) => enemy.role))],
@@ -110,29 +110,11 @@ test('all enemy roles and biome tables expose deterministic variety metadata', a
   expect(content.roles).toHaveLength(12); expect(content.movements.length).toBeGreaterThanOrEqual(9); expect(content.validEnemies).toBe(true);
   expect(Object.values(content.biomeCounts)).toEqual([3, 3, 3, 3, 3]); expect(content.elementTypes.sort()).toEqual([...FLIP_DATA_ELEMENT_TYPES].sort());
   expect(content.assigned).toHaveLength(15);
-});
-
-test('all 96 enemy variants expose stable motion profiles, seeded parameters, and defense sequences', async ({ page }) => {
-  await page.goto('/pinball/'); await page.waitForFunction(() => !!window.FLIPSTRIKE);
+  await page.waitForFunction(() => !!window.FLIPSTRIKE);
   const metadata = await page.evaluate(() => ({ valid: FLIP_DATA.ENEMIES.every((enemy) => enemy.motionProfile?.id && enemy.motionThreat >= 1 && enemy.defenseSequence?.length), signatures: FLIP_DATA.ENEMIES.map((enemy) => `${enemy.role}:${enemy.motionProfile.id}`), families: [...new Set(FLIP_DATA.ENEMIES.map((enemy) => enemy.motionProfile.id))] }));
   expect(metadata.valid).toBe(true); expect(new Set(metadata.signatures).size).toBe(96); expect(metadata.families).toEqual(['steady', 'reverse', 'weave', 'burst', 'altitude', 'feint', 'alternating', 'omega']);
   const seeded = await page.evaluate(() => { FLIPSTRIKE.startNew(81); const first = FLIPSTRIKE.motionStateFor(FLIP_DATA.enemyById['drifter-8'], 0); FLIPSTRIKE.startNew(81); const second = FLIPSTRIKE.motionStateFor(FLIP_DATA.enemyById['drifter-8'], 0); return { first, second }; });
   expect(seeded.first.motionSeed).not.toBe(seeded.second.motionSeed); expect(seeded.first.motionSpeed).toBeGreaterThanOrEqual(.92); expect(seeded.first.motionSpeed).toBeLessThanOrEqual(1.08);
-});
-
-test('next level destroys prior damage labels and stale encounter callbacks', async ({ page }) => {
-  await page.goto('/pinball/'); await page.waitForFunction(() => !!window.FLIPSTRIKE); await page.evaluate(() => FLIPSTRIKE.startNew(1));
-  await page.evaluate(() => { FLIPSTRIKE.pushFloater(360, 500, '999', 0xffffff, 22); window.__oldDamageLabel = FLIPSTRIKE.floaters[0].label; FLIPSTRIKE.levelComplete(); });
-  await page.getByRole('button', { name: /Next Level/ }).click();
-  const cleanup = await page.evaluate(() => ({ tracked: FLIPSTRIKE.floaters.length, destroyed: window.__oldDamageLabel.destroyed, parent: window.__oldDamageLabel.parent, level: FLIPSTRIKE.run.level }));
-  expect(cleanup).toEqual({ tracked: 0, destroyed: true, parent: null, level: 2 });
-  await page.evaluate(() => { FLIPSTRIKE.startNew(21); FLIPSTRIKE.encounterCleared(); FLIPSTRIKE.startNew(22); }); await page.waitForTimeout(650);
-  expect(await page.evaluate(() => ({ level: FLIPSTRIKE.run.level, encounter: FLIPSTRIKE.run.encounter, actual: FLIPSTRIKE.enemies.map((enemy) => enemy.getUserData().id), expected: FLIPSTRIKE.run.challenge.encounters[0] }))).toEqual(expect.objectContaining({ level: 22, encounter: 0 }));
-  expect(await page.evaluate(() => FLIPSTRIKE.enemies.map((enemy) => enemy.getUserData().id))).toEqual(await page.evaluate(() => FLIPSTRIKE.run.challenge.encounters[0]));
-});
-
-test('all 101 levels obey role, tier, obstacle, encounter, and threat gates across rerolls', async ({ page }) => {
-  await page.goto('/pinball/');
   const audit = await page.evaluate(() => {
     const failures = [], roleUnlocks = FLIP_DATA.ROLE_UNLOCKS, obstacleUnlocks = FLIP_DATA.OBSTACLE_UNLOCKS;
     for (let level = 1; level <= 101; level++) for (let attempt = 1; attempt <= 5; attempt++) {
@@ -147,12 +129,19 @@ test('all 101 levels obey role, tier, obstacle, encounter, and threat gates acro
     return failures;
   });
   expect(audit).toEqual([]);
-});
-
-test('retries reroll ordinary challenges while generated runs retain exact challenge state', async ({ page }) => {
-  await page.goto('/pinball/'); await page.waitForFunction(() => !!window.FLIPSTRIKE);
   const attempts = await page.evaluate(() => { FLIPSTRIKE.startNew(36); const first = structuredClone(FLIPSTRIKE.run.challenge); FLIPSTRIKE.startNew(36); return { first, second: structuredClone(FLIPSTRIKE.run.challenge) }; });
   expect(attempts.first.attemptSeed).not.toBe(attempts.second.attemptSeed); expect(attempts.first.level).toBe(attempts.second.level); expect(attempts.first.threatRatio).toBeGreaterThanOrEqual(.95); expect(attempts.second.threatRatio).toBeLessThanOrEqual(1.05);
+});
+
+test('next level destroys prior damage labels and stale encounter callbacks', async ({ page }) => {
+  await page.goto('/pinball/'); await page.waitForFunction(() => !!window.FLIPSTRIKE); await page.evaluate(() => FLIPSTRIKE.startNew(1));
+  await page.evaluate(() => { FLIPSTRIKE.pushFloater(360, 500, '999', 0xffffff, 22); window.__oldDamageLabel = FLIPSTRIKE.floaters[0].label; FLIPSTRIKE.levelComplete(); });
+  await page.getByRole('button', { name: /Next Level/ }).click();
+  const cleanup = await page.evaluate(() => ({ tracked: FLIPSTRIKE.floaters.length, destroyed: window.__oldDamageLabel.destroyed, parent: window.__oldDamageLabel.parent, level: FLIPSTRIKE.run.level }));
+  expect(cleanup).toEqual({ tracked: 0, destroyed: true, parent: null, level: 2 });
+  await page.evaluate(() => { FLIPSTRIKE.startNew(21); FLIPSTRIKE.encounterCleared(); FLIPSTRIKE.startNew(22); }); await page.waitForTimeout(650);
+  expect(await page.evaluate(() => ({ level: FLIPSTRIKE.run.level, encounter: FLIPSTRIKE.run.encounter, actual: FLIPSTRIKE.enemies.map((enemy) => enemy.getUserData().id), expected: FLIPSTRIKE.run.challenge.encounters[0] }))).toEqual(expect.objectContaining({ level: 22, encounter: 0 }));
+  expect(await page.evaluate(() => FLIPSTRIKE.enemies.map((enemy) => enemy.getUserData().id))).toEqual(await page.evaluate(() => FLIPSTRIKE.run.challenge.encounters[0]));
 });
 
 test('version four resets gameplay progression while preserving version three settings', async ({ page }) => {
@@ -198,7 +187,7 @@ test('all table modules pass bounds, lane, and runtime construction validation',
   }
 });
 
-test('role controllers move distinctly, remain bounded, and select survivor defense patterns', async ({ page }) => {
+test('role controllers cover movement, defense patterns, and special combat behaviors', async ({ page }) => {
   await page.goto('/pinball/'); await page.waitForFunction(() => !!window.FLIPSTRIKE); await page.evaluate(() => FLIPSTRIKE.startNew(1));
   const result = await page.evaluate(() => {
     FLIPSTRIKE.enemies.forEach((enemy) => { FLIPSTRIKE.destroyActorSprite(enemy); FLIPSTRIKE.world.destroyBody(enemy); }); FLIPSTRIKE.enemies = [];
@@ -209,11 +198,8 @@ test('role controllers move distinctly, remain bounded, and select survivor defe
     return { bounded, distinct: new Set(moved.map((value) => value.toFixed(2))).size, pattern: FLIPSTRIKE.projectiles[0].shape, expected: FLIP_DATA.enemyById[FLIPSTRIKE.enemies[0].getUserData().id].defensePattern };
   });
   expect(result.bounded).toBe(true); expect(result.distinct).toBeGreaterThanOrEqual(6); expect(result.pattern).toBe(result.expected);
-});
-
-test('healing, summoning, splitting, phasing, and directional defenses execute their role rules', async ({ page }) => {
-  await page.goto('/pinball/'); await page.waitForFunction(() => !!window.FLIPSTRIKE); await page.evaluate(() => FLIPSTRIKE.startNew(61));
-  const result = await page.evaluate(() => {
+  await page.evaluate(() => FLIPSTRIKE.startNew(61));
+  const behaviors = await page.evaluate(() => {
     FLIPSTRIKE.enemies.forEach((enemy) => { FLIPSTRIKE.destroyActorSprite(enemy); FLIPSTRIKE.world.destroyBody(enemy); }); FLIPSTRIKE.enemies = [];
     const ally = FLIPSTRIKE.spawnEnemyInstance({ id: 'patrol-4', p: { x: 4, y: 6 } }), healer = FLIPSTRIKE.spawnEnemyInstance({ id: 'healer-4', p: { x: 5, y: 6 } }); ally.getUserData().hp *= .5; healer.getUserData().actionClock = 0; const hpBefore = ally.getUserData().hp; FLIPSTRIKE.updateEnemies(.02); const healed = ally.getUserData().hp > hpBefore;
     const summoner = FLIPSTRIKE.spawnEnemyInstance({ id: 'summoner-4', p: { x: 7, y: 6 } }); summoner.getUserData().actionClock = 0; FLIPSTRIKE.run.replacementBudget = 1; const countBeforeSummon = FLIPSTRIKE.enemies.length; FLIPSTRIKE.updateEnemies(.02); const summoned = FLIPSTRIKE.enemies.length === countBeforeSummon + 1 && FLIPSTRIKE.run.replacementBudget === 0;
@@ -222,7 +208,7 @@ test('healing, summoning, splitting, phasing, and directional defenses execute t
     const blocked = FLIPSTRIKE.spawnEnemyInstance({ id: 'shield-4', p: { x: 3, y: 8 } }), exposed = FLIPSTRIKE.spawnEnemyInstance({ id: 'shield-4', p: { x: 9, y: 8 } }); blocked.getUserData().hp = blocked.getUserData().maxHp = 500; exposed.getUserData().hp = exposed.getUserData().maxHp = 500; blocked.getUserData().weakHit = false; exposed.getUserData().weakHit = true; FLIPSTRIKE.damageEnemy(blocked, 30, false); FLIPSTRIKE.damageEnemy(exposed, 30, false); const directional = (500 - exposed.getUserData().hp) > (500 - blocked.getUserData().hp) * 2;
     return { healed, summoned, phased, split, directional };
   });
-  expect(result).toEqual({ healed: true, summoned: true, phased: true, split: true, directional: true });
+  expect(behaviors).toEqual({ healed: true, summoned: true, phased: true, split: true, directional: true });
 });
 
 test('boss thresholds activate shared table hazards with visible warning windows', async ({ page }) => {
@@ -376,7 +362,7 @@ test('main timer runs only for launched balls and defense', async ({ page }) => 
   await expect(page.locator('#phase')).toContainText('PLUNGER');
 });
 
-test('XP threshold pauses play for a three-card draft', async ({ page }) => {
+test('XP drafts pause safely and resolve correctly at encounter and level boundaries', async ({ page }) => {
   await page.goto('/pinball/');
   await page.getByRole('button', { name: /Campaign/ }).click();
   await page.locator('[data-level="1"]').click();
@@ -386,23 +372,17 @@ test('XP threshold pauses play for a three-card draft', async ({ page }) => {
   await page.locator('.upgrade-card').first().click();
   await expect(page.locator('#overlay')).toBeEmpty();
   expect(await page.evaluate(() => Object.values(FLIPSTRIKE.run.cards).reduce((a, b) => a + b, 0))).toBe(1);
-});
-
-test('final enemy XP threshold cannot replace the level clear screen', async ({ page }) => {
-  await page.goto('/pinball/'); await page.waitForFunction(() => !!window.FLIPSTRIKE); await expect(page.locator('.brand')).toBeVisible(); await page.evaluate(() => FLIPSTRIKE.startNew(1));
+  await page.evaluate(() => FLIPSTRIKE.startNew(1));
   await page.evaluate(() => { FLIPSTRIKE.run.xp = FLIPSTRIKE.xpNeeded() - 1; FLIPSTRIKE.killEnemy(FLIPSTRIKE.enemies[0]); });
   await expect(page.getByRole('button', { name: /Next Level/ })).toBeVisible(); await page.waitForTimeout(250);
   await expect(page.locator('.upgrade-card')).toHaveCount(0); expect(await page.evaluate(() => ({ phase: FLIPSTRIKE.phase, pending: FLIPSTRIKE.run.pendingDraft, timer: FLIPSTRIKE.draftTimer }))).toEqual({ phase: 'clear', pending: false, timer: null });
-});
-
-test('boundary XP draft resolves before spawning the next encounter exactly once', async ({ page }) => {
-  await page.goto('/pinball/'); await page.waitForFunction(() => !!window.FLIPSTRIKE); await expect(page.locator('.brand')).toBeVisible(); await page.evaluate(() => FLIPSTRIKE.startNew(21));
+  await page.evaluate(() => FLIPSTRIKE.startNew(21));
   await page.evaluate(() => { FLIPSTRIKE.enemies.forEach((enemy) => { FLIPSTRIKE.destroyActorSprite(enemy); FLIPSTRIKE.world.destroyBody(enemy); }); FLIPSTRIKE.enemies = []; const enemy = FLIPSTRIKE.spawnEnemyInstance({ id: 'drifter-1', p: { x: 6, y: 6 } }); FLIPSTRIKE.run.xp = FLIPSTRIKE.xpNeeded() - 1; FLIPSTRIKE.killEnemy(enemy); });
   await expect(page.locator('.upgrade-card')).toHaveCount(3); expect(await page.evaluate(() => ({ encounter: FLIPSTRIKE.run.encounter, enemies: FLIPSTRIKE.enemies.length, advance: FLIPSTRIKE.run.pendingEncounterAdvance }))).toEqual({ encounter: 0, enemies: 0, advance: true });
   const before = await page.evaluate(() => FLIPSTRIKE.run.time); await page.locator('.upgrade-card').first().click(); await expect(page.locator('#transition-title')).toHaveText('PHASE 2 / 2'); expect(await page.evaluate(() => ({ phase: FLIPSTRIKE.phase, timerActive: FLIPSTRIKE.isMainTimerActive(), encounter: FLIPSTRIKE.run.encounter }))).toEqual({ phase: 'encounterTransition', timerActive: false, encounter: 0 }); await page.waitForTimeout(250); expect(Math.abs(await page.evaluate(() => FLIPSTRIKE.run.time) - before)).toBeLessThan(.03); await expect.poll(() => page.evaluate(() => FLIPSTRIKE.enemies.length)).toBeGreaterThan(0); const expected = await page.evaluate(() => FLIPSTRIKE.run.challenge.encounters[1]); expect(await page.evaluate(() => FLIPSTRIKE.enemies.map((enemy) => enemy.getUserData().id))).toEqual(expected); expect(await page.evaluate(() => FLIPSTRIKE.run.time)).toBeGreaterThanOrEqual(before + 7.9); await page.waitForTimeout(650); expect(await page.evaluate(() => FLIPSTRIKE.enemies.map((enemy) => enemy.getUserData().id))).toEqual(expected);
 });
 
-test('pause creates and consumes a one-use suspend save', async ({ page }) => {
+test('one-use suspend restores ordinary play, intermissions, hazards, and enemy state', async ({ page }) => {
   await page.goto('/pinball/');
   await page.getByRole('button', { name: /Campaign/ }).click();
   await page.locator('[data-level="1"]').click();
@@ -414,20 +394,13 @@ test('pause creates and consumes a one-use suspend save', async ({ page }) => {
   await page.getByRole('button', { name: 'Pause game' }).click();
   await page.getByRole('button', { name: /Main Menu/ }).click();
   await expect(page.getByRole('button', { name: /Continue/ })).toBeDisabled();
-});
-
-test('one-use suspend preserves an active intermission', async ({ page }) => {
-  await page.goto('/pinball/'); await page.getByRole('button', { name: /Campaign/ }).click(); await page.locator('[data-level="1"]').click();
+  await page.evaluate(() => FLIPSTRIKE.startNew(1));
   await page.evaluate(() => { const ball = FLIPSTRIKE.balls[0]; ball.getUserData().launched = true; ball.setGravityScale(1); ball.setTransform(planck.Vec2(6, 1120 / 60), 0); ball.setLinearVelocity(planck.Vec2(0, 8)); });
   await expect(page.locator('#phase')).toHaveText('BALL LEAKED');
   await page.getByRole('button', { name: 'Pause game' }).click(); await page.getByRole('button', { name: /Save & Exit/ }).click(); await page.getByRole('button', { name: /Continue/ }).click();
   await expect(page.locator('#phase')).toHaveText('BALL LEAKED'); await expect(page.locator('#phase-transition')).toBeVisible();
   const remaining = await page.evaluate(() => FLIPSTRIKE.run.transition.remaining); expect(remaining).toBeGreaterThan(0); expect(remaining).toBeLessThanOrEqual(2);
   await page.evaluate(() => { FLIPSTRIKE.run.transition.remaining = .01; }); await expect(page.locator('#phase')).toContainText('DODGE');
-});
-
-test('suspend restores table hazard clocks and enemy behavior state', async ({ page }) => {
-  await page.goto('/pinball/'); await page.waitForFunction(() => !!window.FLIPSTRIKE); await expect(page.locator('.brand')).toBeVisible();
   const level = await page.evaluate(() => FLIP_DATA.LEVELS.find((candidate) => candidate.layoutId === 'furnace-breakout').level);
   await page.evaluate((targetLevel) => FLIPSTRIKE.startNew(targetLevel), level);
   await page.evaluate(() => { FLIPSTRIKE.tableElements[0].clock = 1.234; FLIPSTRIKE.tableElements[0].hp = 2; FLIPSTRIKE.enemies[0].getUserData().behaviorClock = 4.321; });
