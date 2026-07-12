@@ -92,7 +92,7 @@
     spinner: { name: "Spinner", description: "A rotating blade that awards XP and charge as it turns.", tip: "Fast glancing shots produce the most rotation." },
     gate: { name: "One-Way Gate", description: "A directional rail that opens for upward shots and blocks the return path.", tip: "Use it to keep the ball in the upper playfield." },
     rollover: { name: "Rollover", description: "A lane sensor that rewards the first pass by each ball.", tip: "Route multiballs across different switches." },
-    ramp: { name: "Ramp", description: "A guided corridor with a controlled exit and bonus XP.", tip: "Enter between the rails from the open end." },
+    ramp: { name: "Ramp", description: "An arrow field gently steers the ball toward a controlled exit and bonus XP.", tip: "Follow the arrows through the highlighted area." },
     kicker: { name: "Vortex", description: "Captures the ball, telegraphs a randomized safe launch, then fires it upward.", tip: "Read the arrow: its direction and length show the next launch." },
     captive: { name: "Captive Ball", description: "A heavy target constrained to its own rail.", tip: "Strike it hard to transfer momentum and open routes." },
     magnet: { name: "Magnetic Field", description: "A bounded field alternately pulls and pushes active balls.", tip: "Watch the ring polarity before committing a shot." },

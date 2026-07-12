@@ -26,7 +26,7 @@ test('full campaign content validates and level one starts cleanly', async ({ pa
   await expect(page.locator('#hud')).toBeVisible();
   await expect(page.locator('#level-kicker')).toHaveText('LEVEL 001');
   await expect(page.locator('#difficulty')).toHaveText('TUTORIAL');
-  await expect(page.locator('#wave')).toContainText('ENCOUNTER 1 / 1');
+  await expect(page.locator('#wave')).toContainText('SINGLE PHASE');
   await expect(page.locator('#phase')).toHaveText('PLUNGER 18%');
   expect(await page.evaluate(() => ({ enemies: FLIPSTRIKE.enemies.map((body) => body.getUserData().id), elements: FLIPSTRIKE.tableElements.map((element) => element.def.type), ratio: FLIPSTRIKE.run.challenge.threatRatio }))).toEqual(expect.objectContaining({ enemies: ['drifter-1'], elements: ['bumper'] }));
   const paddles = await page.evaluate(() => FLIPSTRIKE.flippers.map((body) => FLIPSTRIKE.bodyPolygon(body)));
@@ -263,6 +263,8 @@ test('actor and defense assets map every enemy, biome, and boss presentation', a
   await expect(page.locator('#phase')).toContainText('DODGE');
   const bossUi = await page.evaluate(() => { FLIPSTRIKE.spawnProjectile(); FLIPSTRIKE.render(); const sprite = FLIPSTRIKE.defenseBossSprite; return { visible: sprite.visible, width: sprite.width, visual: FLIPSTRIKE.projectiles[0].visual, mix: FLIPSTRIKE.phaseVisualMix() }; });
   expect(bossUi.visible).toBe(true); expect(bossUi.width).toBeGreaterThan(250); expect(bossUi.visual).toBe('shard'); expect(bossUi.mix).toBe(1);
+  const formation = await page.evaluate(() => { FLIPSTRIKE.startNew(1); FLIPSTRIKE.beginDefense(); FLIPSTRIKE.spawnProjectile(); FLIPSTRIKE.render(); return { count: FLIPSTRIKE.defenseFormationSprites.length, textured: FLIPSTRIKE.defenseFormationSprites.every((entry) => !!entry.sprite), boss: FLIPSTRIKE.defenseBossSprite, shooter: FLIPSTRIKE.run.defensePresenterIndex }; });
+  expect(formation).toEqual({ count: 1, textured: true, boss: null, shooter: 0 });
 });
 
 test('defense expiry clears every projectile before survival and freezes only the normal timer', async ({ page }) => {
@@ -292,10 +294,10 @@ test('table upgrade cards install and remove shared physics elements safely', as
   await page.goto('/pinball/'); await page.waitForFunction(() => !!window.FLIPSTRIKE); await expect(page.locator('.brand')).toBeVisible(); await page.evaluate(() => FLIPSTRIKE.startNew(1));
   const result = await page.evaluate(() => {
     const effects = ['extraBumper', 'gate', 'launcher', 'ramp'], cards = effects.map((effect) => FLIP_DATA.CARDS.find((card) => card.category === 'table' && card.effect === effect)); cards.forEach((card) => FLIPSTRIKE.chooseCard(card.id));
-    const installed = effects.every((effect) => FLIPSTRIKE.tableElements.some((element) => element.id.endsWith(`card-${effect}`))); cards.forEach((card) => FLIPSTRIKE.sellCard(card.id));
-    return { installed, removed: effects.every((effect) => !FLIPSTRIKE.tableElements.some((element) => element.id.endsWith(`card-${effect}`))), finite: FLIPSTRIKE.tableElements.flatMap((element) => element.bodies).every((body) => Number.isFinite(body.getPosition().x)) };
+    const installed = effects.every((effect) => FLIPSTRIKE.tableElements.some((element) => element.id.endsWith(`card-${effect}`))), ramp = FLIPSTRIKE.tableElements.find((element) => element.id.endsWith('card-ramp')), rampIsGuidanceOnly = ramp.bodies.some((body) => body.getUserData().type === 'rampGuide') && ramp.fixtures.every(({ solid }) => solid === false) && !FLIPSTRIKE.walls.some((body) => body.getUserData().type === 'rampRail'); cards.forEach((card) => FLIPSTRIKE.sellCard(card.id));
+    return { installed, rampIsGuidanceOnly, removed: effects.every((effect) => !FLIPSTRIKE.tableElements.some((element) => element.id.endsWith(`card-${effect}`))), finite: FLIPSTRIKE.tableElements.flatMap((element) => element.bodies).every((body) => Number.isFinite(body.getPosition().x)) };
   });
-  expect(result).toEqual({ installed: true, removed: true, finite: true });
+  expect(result).toEqual({ installed: true, rampIsGuidanceOnly: true, removed: true, finite: true });
 });
 
 test('draining the last active ball consumes one ball and starts defense', async ({ page }) => {
@@ -397,7 +399,7 @@ test('boundary XP draft resolves before spawning the next encounter exactly once
   await page.goto('/pinball/'); await page.waitForFunction(() => !!window.FLIPSTRIKE); await expect(page.locator('.brand')).toBeVisible(); await page.evaluate(() => FLIPSTRIKE.startNew(21));
   await page.evaluate(() => { FLIPSTRIKE.enemies.forEach((enemy) => { FLIPSTRIKE.destroyActorSprite(enemy); FLIPSTRIKE.world.destroyBody(enemy); }); FLIPSTRIKE.enemies = []; const enemy = FLIPSTRIKE.spawnEnemyInstance({ id: 'drifter-1', p: { x: 6, y: 6 } }); FLIPSTRIKE.run.xp = FLIPSTRIKE.xpNeeded() - 1; FLIPSTRIKE.killEnemy(enemy); });
   await expect(page.locator('.upgrade-card')).toHaveCount(3); expect(await page.evaluate(() => ({ encounter: FLIPSTRIKE.run.encounter, enemies: FLIPSTRIKE.enemies.length, advance: FLIPSTRIKE.run.pendingEncounterAdvance }))).toEqual({ encounter: 0, enemies: 0, advance: true });
-  await page.locator('.upgrade-card').first().click(); await expect.poll(() => page.evaluate(() => FLIPSTRIKE.enemies.length)).toBeGreaterThan(0); const expected = await page.evaluate(() => FLIPSTRIKE.run.challenge.encounters[1]); expect(await page.evaluate(() => FLIPSTRIKE.enemies.map((enemy) => enemy.getUserData().id))).toEqual(expected); await page.waitForTimeout(650); expect(await page.evaluate(() => FLIPSTRIKE.enemies.map((enemy) => enemy.getUserData().id))).toEqual(expected);
+  const before = await page.evaluate(() => FLIPSTRIKE.run.time); await page.locator('.upgrade-card').first().click(); await expect(page.locator('#transition-title')).toHaveText('PHASE 2 / 2'); expect(await page.evaluate(() => ({ phase: FLIPSTRIKE.phase, timerActive: FLIPSTRIKE.isMainTimerActive(), encounter: FLIPSTRIKE.run.encounter }))).toEqual({ phase: 'encounterTransition', timerActive: false, encounter: 0 }); await page.waitForTimeout(250); expect(Math.abs(await page.evaluate(() => FLIPSTRIKE.run.time) - before)).toBeLessThan(.03); await expect.poll(() => page.evaluate(() => FLIPSTRIKE.enemies.length)).toBeGreaterThan(0); const expected = await page.evaluate(() => FLIPSTRIKE.run.challenge.encounters[1]); expect(await page.evaluate(() => FLIPSTRIKE.enemies.map((enemy) => enemy.getUserData().id))).toEqual(expected); expect(await page.evaluate(() => FLIPSTRIKE.run.time)).toBeGreaterThanOrEqual(before + 7.9); await page.waitForTimeout(650); expect(await page.evaluate(() => FLIPSTRIKE.enemies.map((enemy) => enemy.getUserData().id))).toEqual(expected);
 });
 
 test('pause creates and consumes a one-use suspend save', async ({ page }) => {
