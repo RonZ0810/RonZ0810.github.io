@@ -30,7 +30,7 @@ Downloads are verified and raw models are kept outside the published output in `
 
 Failed model downloads leave detailed procedural stand-ins. JavaScript or WebGL failure leaves a static room poster and normal HTML links. The screenshot test captures a fresh poster and desktop/mobile QA images under `test-results`; the shipped poster is `public/office/room-poster.png`.
 
-The existing biography, project, school, and contact placeholders still need real portfolio content. The pinball app is unchanged.
+The existing biography, project, school, and contact placeholders still need real portfolio content.
 
 ## Visual and performance checks
 

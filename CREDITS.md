@@ -9,4 +9,4 @@ The office combines original Three.js architecture, furniture, printed artwork, 
 
 The complete download URLs, byte sizes, and checksums are in `public/office/sources.json`. `node scripts/fetch-office-assets.mjs` verifies source downloads into `.cache/office`; `powershell -File scripts/optimize-office-assets.ps1` produces the shipped GLB files with meshopt compression and conservative mesh simplification. Source JPEG textures remain unchanged. Only wood color uses 2K on desktop; normal and roughness maps use 1K on all devices. The room poster is a render of this scene. Outfit remains self-hosted under OFL-1.1. No tracking or audio is added to the portfolio.
 
-Poly Haven's license: https://polyhaven.com/license. The pinball game retains its own asset and dependency credits.
+Poly Haven's license: https://polyhaven.com/license.
