@@ -2,6 +2,8 @@
 
 Run `npm run dev` for the local preview, `npm run build` for GitHub Pages output, and `npm test -- --workers=1` for the full Playwright suite. There is no backend and the deployed site makes no third-party asset requests.
 
+CI uses one Playwright worker because hosted runners render WebGL in software. Asynchronous assertions have a 15-second CI timeout; the 60-second per-test limit and all behavioral checks remain in place. Failed runs upload browser traces, screenshots, and error context as the `playwright-failures` artifact.
+
 ## Controls
 
 - Drag to orbit; touch users drag horizontally and scroll vertically.

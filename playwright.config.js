@@ -4,11 +4,14 @@ export default defineConfig({
   testDir: './tests',
   timeout: 60_000,
   fullyParallel: true,
-  workers: 2,
+  // Hosted runners render WebGL in software. Concurrent office scenes compete
+  // for CPU time and can starve browser input, history events, and screenshots.
+  workers: process.env.CI ? 1 : 2,
+  expect: { timeout: process.env.CI ? 15_000 : 5_000 },
   reporter: [['list']],
   use: {
     baseURL: 'http://127.0.0.1:4174',
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
   projects: [{ name: 'desktop', use: { ...devices['Desktop Chrome'] } }],
