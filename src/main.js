@@ -10,6 +10,20 @@ const announcer = document.querySelector('[data-route-announcer]');
 
 let studyScene = null;
 let navigationController = null;
+let motionPreference = reducedMotionQuery.matches;
+try { motionPreference = sessionStorage.getItem('office-motion') === 'off' || reducedMotionQuery.matches; } catch { /* Storage is optional. */ }
+
+function syncOfficeControls(state) {
+  document.body.classList.toggle('is-inspecting', state.inspecting);
+  document.querySelector('[data-office-lamp]')?.setAttribute('aria-pressed', String(state.lampOn));
+  document.querySelector('[data-office-notebook]')?.setAttribute('aria-pressed', String(state.notebookOpen));
+  document.querySelector('[data-office-inspect]')?.setAttribute('aria-pressed', String(state.inspecting));
+  document.querySelector('[data-office-motion]')?.setAttribute('aria-pressed', String(!state.reducedMotion));
+  const done = document.querySelector('[data-office-done]');
+  if (done) done.hidden = !state.inspecting;
+  const hint = document.querySelector('[data-object-hint]');
+  if (hint) hint.textContent = state.inspecting ? 'Drag to turn the sculpture · Escape to return' : 'Drag to look around · select an object to explore';
+}
 
 function setSceneStatus(message, state = 'loading') {
   if (!statusElement) return;
@@ -54,7 +68,7 @@ function closeContactDialog() {
 }
 
 function isInternalRouteLink(anchor, event) {
-  if (!studyScene || event.defaultPrevented || event.button !== 0) return false;
+  if (!studyScene || studyScene.contextLost || event.defaultPrevented || event.button !== 0) return false;
   if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return false;
   if (!anchor.matches('[data-route]')) return false;
   if (anchor.target || anchor.hasAttribute('download')) return false;
@@ -80,6 +94,13 @@ function replaceRouteElement(id, nextDocument) {
 
 async function navigate(destination, { historyMode = 'push', restoreFocus = true } = {}) {
   const targetUrl = new URL(destination, window.location.href);
+  if (historyMode === 'push' && targetUrl.pathname === window.location.pathname) {
+    navigationController?.abort();
+    document.body.classList.remove('is-navigating');
+    studyScene?.resetView();
+    setSceneStatus('Office ready', 'ready');
+    return;
+  }
   if (!studyScene) {
     window.location.assign(targetUrl.href);
     return;
@@ -89,7 +110,8 @@ async function navigate(destination, { historyMode = 'push', restoreFocus = true
   const controller = new AbortController();
   navigationController = controller;
   document.body.classList.add('is-navigating');
-  setSceneStatus('Moving through the study…', 'moving');
+  studyScene.skipTransition();
+  setSceneStatus('Opening the room…', 'moving');
 
   try {
     const response = await fetch(targetUrl.href, {
@@ -98,6 +120,7 @@ async function navigate(destination, { historyMode = 'push', restoreFocus = true
     });
     if (!response.ok) throw new Error(`Unable to load ${targetUrl.pathname}`);
     const html = await response.text();
+    if (controller.signal.aborted || navigationController !== controller) return;
     const nextDocument = new DOMParser().parseFromString(html, 'text/html');
     const nextMain = nextDocument.getElementById('page-content');
     const nextBody = nextDocument.body;
@@ -119,9 +142,11 @@ async function navigate(destination, { historyMode = 'push', restoreFocus = true
 
     refreshSceneBindings();
     studyScene.transitionTo(sceneKeyFromDocument());
+    window.scrollTo({ top: 0, behavior: 'instant' });
     const heading = document.querySelector('#page-content h1');
     if (restoreFocus) {
-      window.setTimeout(() => heading?.focus({ preventScroll: true }), 180);
+      heading?.setAttribute('tabindex', '-1');
+      heading?.focus({ preventScroll: true });
     }
     if (announcer && heading) announcer.textContent = `${heading.textContent.trim()} loaded`;
   } catch (error) {
@@ -130,13 +155,31 @@ async function navigate(destination, { historyMode = 'push', restoreFocus = true
   } finally {
     if (!controller.signal.aborted && navigationController === controller) {
       document.body.classList.remove('is-navigating');
-      setSceneStatus('Study ready', 'ready');
+      setSceneStatus('Office ready', 'ready');
     }
   }
 }
 
 function bindGlobalInteractions() {
   document.addEventListener('click', (event) => {
+    if (studyScene) {
+      if (event.target.closest('[data-office-lamp]')) { studyScene.toggleLamp(); return; }
+      if (event.target.closest('[data-office-notebook]')) { studyScene.toggleNotebook(); return; }
+      if (event.target.closest('[data-office-inspect]')) {
+        studyScene.inspect(); sceneContainer.focus({ preventScroll: true }); return;
+      }
+      if (event.target.closest('[data-office-done]')) {
+        studyScene.exitInspection(); document.querySelector('[data-office-inspect]')?.focus({ preventScroll: true }); return;
+      }
+      if (event.target.closest('[data-office-reset]')) { studyScene.resetView(); return; }
+      if (event.target.closest('[data-office-zoom-in]')) { studyScene.zoomBy(0.85); return; }
+      if (event.target.closest('[data-office-zoom-out]')) { studyScene.zoomBy(1.18); return; }
+      if (event.target.closest('[data-office-motion]')) {
+        motionPreference = !motionPreference; studyScene.setReducedMotion(motionPreference);
+        try { sessionStorage.setItem('office-motion', motionPreference ? 'off' : 'on'); } catch { /* Optional. */ }
+        return;
+      }
+    }
     const detailsTrigger = event.target.closest('[data-toggle-detail]');
     if (detailsTrigger) {
       setDetails(detailsTrigger);
@@ -172,7 +215,12 @@ function bindGlobalInteractions() {
   });
 
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') closeContactDialog();
+    if (event.key === 'Escape') {
+      closeContactDialog();
+      if (studyScene?.inspecting) {
+        studyScene.exitInspection(); document.querySelector('[data-office-inspect]')?.focus({ preventScroll: true });
+      }
+    }
   });
 
   window.addEventListener('popstate', () => {
@@ -181,8 +229,10 @@ function bindGlobalInteractions() {
 
   motionControl?.addEventListener('click', () => studyScene?.skipTransition());
   reducedMotionQuery.addEventListener('change', (event) => {
-    studyScene?.setReducedMotion(event.matches);
+    motionPreference = event.matches;
+    studyScene?.setReducedMotion(motionPreference);
   });
+  window.addEventListener('pagehide', (event) => { if (!event.persisted) studyScene?.destroy(); });
 }
 
 async function initialiseScene() {
@@ -190,14 +240,25 @@ async function initialiseScene() {
   try {
     const { StudyScene } = await import('./scene.js');
     studyScene = new StudyScene(sceneContainer, {
-      reducedMotion: reducedMotionQuery.matches,
+      reducedMotion: motionPreference,
       onHotspot: (href) => navigate(href),
       onTransitionState: (isMoving) => setMotionControlVisible(isMoving),
+      onState: syncOfficeControls,
+      onFailure: (restored) => {
+        if (restored) { studyScene?.destroy(); studyScene = null; initialiseScene(); return; }
+        document.body.classList.remove('scene-ready');
+        document.body.classList.add('scene-unavailable');
+        setMotionControlVisible(false);
+        setSceneStatus('Static reading view', 'unavailable');
+        document.querySelectorAll('.office-controls button').forEach(button => { button.disabled = true; });
+      },
     });
     studyScene.transitionTo(sceneKeyFromDocument(), { immediate: true });
     refreshSceneBindings();
     document.body.classList.add('scene-ready');
-    setSceneStatus('Study ready', 'ready');
+    document.body.classList.remove('scene-unavailable');
+    document.querySelectorAll('.office-controls button').forEach(button => { button.disabled = false; });
+    setSceneStatus('Office ready', 'ready');
   } catch {
     document.body.classList.add('scene-unavailable');
     setSceneStatus('Static reading view', 'unavailable');

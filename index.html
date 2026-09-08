@@ -3,20 +3,38 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Ronald's personal portfolio, arranged as an interactive study." data-route-meta />
+    <meta name="description" content="Ronald's personal portfolio, inside an interactive modern office." data-route-meta />
     <link rel="canonical" href="https://ronz0810.github.io/" data-route-meta />
     <meta property="og:title" content="Ronald — Personal Portfolio" data-route-meta />
-    <meta property="og:description" content="An interactive personal study with work, education, and hobbies." data-route-meta />
+    <meta property="og:description" content="Explore a modern office filled with work, ideas, and personal interests." data-route-meta />
     <meta property="og:type" content="website" data-route-meta />
     <meta property="og:url" content="https://ronz0810.github.io/" data-route-meta />
     <meta property="og:image" content="https://ronz0810.github.io/social-card.svg" data-route-meta />
     <title>Ronald — Personal Portfolio</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/src/styles.css" />
+    <link rel="stylesheet" href="/src/styles.css" /><link rel="stylesheet" href="/src/office.css" />
   </head>
   <body data-scene="home" data-route="home">
     <a class="skip-link" href="#page-content">Skip to content</a>
-    <div class="scene-layer" data-study-scene aria-hidden="true"></div>
+    <div class="scene-layer" data-study-scene tabindex="0" role="group" aria-label="Interactive office. Use arrow keys to rotate, plus and minus to zoom, and Home to reset." aria-describedby="room-keyboard-help"></div><span id="room-keyboard-help" class="sr-only">Drag horizontally to orbit. Select the labeled links or use the office controls to interact with objects.</span>
+    <div class="office-caption"><span class="office-indicator"></span> THE OFFICE <span class="caption-divider">/</span> <span>A space to explore</span></div>
+    <div class="office-controls" aria-label="Office controls">
+      <p class="object-hint" data-object-hint aria-live="polite">Drag to look around · select an object to explore</p>
+      <div class="office-toolbar">
+        <div class="view-controls" role="group" aria-label="Room view">
+          <button type="button" data-office-zoom-out aria-label="Zoom out" title="Zoom out" disabled>−</button>
+          <button type="button" data-office-zoom-in aria-label="Zoom in" title="Zoom in" disabled>+</button>
+          <button type="button" data-office-reset aria-label="Reset view" title="Reset the room view" disabled>↺ <span>Reset view</span></button>
+        </div>
+        <div class="object-controls" role="group" aria-label="Interact with objects">
+          <button type="button" data-office-lamp aria-pressed="true" disabled><span class="control-dot"></span> Lamp</button>
+          <button type="button" data-office-notebook aria-pressed="false" disabled>Notebook</button>
+          <button type="button" data-office-inspect aria-pressed="false" disabled>Sculpture</button>
+        </div>
+        <button type="button" data-office-motion aria-pressed="true" title="Toggle animated motion" disabled>Motion</button>
+        <button type="button" data-office-done hidden>Done</button>
+      </div>
+    </div>
 
     <header class="site-header" id="site-header">
       <a class="brand" href="/" data-route aria-label="Ronald home">
@@ -34,62 +52,37 @@
       <button class="contact-trigger" type="button" data-contact-open>Contact</button>
     </header>
 
-    <div class="scene-status" data-scene-status aria-live="polite">Rendering study…</div>
+    <div class="scene-status" data-scene-status aria-live="polite">Opening the office…</div>
     <button class="motion-control" type="button" data-skip-motion>Skip motion</button>
 
-    <nav class="hotspot-layer" id="hotspot-layer" aria-label="Study destinations">
-      <a class="scene-hotspot" href="/" data-route data-hotspot="home" aria-current="page">Home</a>
-      <a class="scene-hotspot" href="/about/" data-route data-hotspot="about">About</a>
-      <a class="scene-hotspot" href="/projects/" data-route data-hotspot="projects">Projects</a>
-      <a class="scene-hotspot" href="/experience/" data-route data-hotspot="experience">Experience</a>
-      <a class="scene-hotspot" href="/education/" data-route data-hotspot="education">Education</a>
-      <a class="scene-hotspot" href="/hobbies/" data-route data-hotspot="hobbies">Hobbies</a>
-    </nav>
+    <nav class="hotspot-layer" id="hotspot-layer" aria-label="Office destinations"><a class="scene-hotspot" href="/about/" data-route data-hotspot="about"><span class="hotspot-number">01</span>About<span aria-hidden="true">↗</span></a><a class="scene-hotspot" href="/projects/" data-route data-hotspot="projects"><span class="hotspot-number">02</span>Projects<span aria-hidden="true">↗</span></a><a class="scene-hotspot" href="/experience/" data-route data-hotspot="experience"><span class="hotspot-number">03</span>Experience<span aria-hidden="true">↗</span></a><a class="scene-hotspot" href="/education/" data-route data-hotspot="education"><span class="hotspot-number">04</span>Education<span aria-hidden="true">↗</span></a><a class="scene-hotspot" href="/hobbies/" data-route data-hotspot="hobbies"><span class="hotspot-number">05</span>Hobbies<span aria-hidden="true">↗</span></a></nav>
 
     <main id="page-content" tabindex="-1">
-      <div class="page-layout">
-        <section class="page-intro">
-          <p class="page-kicker">Personal portfolio</p>
-          <h1>A study built around the work and the person behind it.</h1>
-          <p class="placeholder">Replace this introduction with a concise welcome, current focus, and the kind of conversations you hope this portfolio starts.</p>
-        </section>
-        <aside class="scene-note">
-          <strong>How to explore</strong>
-          <p>Choose a label in the room, select an object in the scene, or use the navigation above. The reading view always works even if the 3D study cannot load.</p>
-        </aside>
-      </div>
 
-      <section class="content-section">
-        <h2>Start anywhere</h2>
-        <div class="split-content">
-          <ul class="stacked-list">
-            <li>
-              <div class="entry-line"><strong>Résumé board</strong><span>About</span></div>
-              <p>Short notes, current interests, and the context behind this portfolio.</p>
-              <a class="arrow-link" href="/about/" data-route>Open the board &rarr;</a>
-            </li>
-            <li>
-              <div class="entry-line"><strong>Prototype workbench</strong><span>Projects</span></div>
-              <p>Three editable case-study routes, ready for real work and outcomes.</p>
-              <a class="arrow-link" href="/projects/" data-route>Visit the workbench &rarr;</a>
-            </li>
-            <li>
-              <div class="entry-line"><strong>Courtyard</strong><span>Education</span></div>
-              <p>Each school opens as its own static vignette, rather than a résumé line item.</p>
-              <a class="arrow-link" href="/education/" data-route>Walk outside &rarr;</a>
-            </li>
-          </ul>
-          <aside class="detail-panel">
-            <h2>Editing this portfolio</h2>
-            <p>Every page contains direct HTML placeholders. Replace only the marked copy, titles, links, and media areas; no credentials or achievements are pre-filled.</p>
-          </aside>
+      <div class="page-layout home-layout">
+        <section class="page-intro home-intro">
+          <p class="page-kicker">RONALD / PERSONAL PORTFOLIO</p>
+          <h1>Make yourself <br>at home.</h1>
+          <p>A little space for my work, <br>ideas, and everything in between.</p>
+          <a class="home-cta" href="/projects/" data-route>Explore my work <span aria-hidden="true">↗</span></a>
+          <span class="home-invitation"><span aria-hidden="true">↔</span> Take a look around.</span>
+        </section>
+      </div>
+      <section class="content-section home-directory">
+        <div class="directory-intro"><p class="page-kicker">A FEW PLACES TO START</p><h2>Every object <br>has a story.</h2><p>Follow your curiosity, or head straight<br>to what brought you here.</p></div>
+        <div class="directory-links">
+          <a href="/about/" data-route><span>01</span><div><strong>About</strong><small>The person behind the work</small></div><span>↗</span></a>
+          <a href="/projects/" data-route><span>02</span><div><strong>Projects</strong><small>Ideas, experiments, and case studies</small></div><span>↗</span></a>
+          <a href="/experience/" data-route><span>03</span><div><strong>Experience</strong><small>The journey so far</small></div><span>↗</span></a>
+          <a href="/education/" data-route><span>04</span><div><strong>Education</strong><small>A foundation for what comes next</small></div><span>↗</span></a>
+          <a href="/hobbies/" data-route><span>05</span><div><strong>Hobbies</strong><small>Life beyond the desk</small></div><span>↗</span></a>
         </div>
       </section>
     </main>
 
     <footer class="site-footer" id="site-footer">
       <span>© 2026 Ronald</span>
-      <span>Original procedural study assets. No tracking or audio.</span>
+      <span><a href="/office/sources.json">Room assets & credits ↗</a></span>
     </footer>
 
     <dialog class="contact-dialog" id="contact-dialog" aria-labelledby="contact-title">

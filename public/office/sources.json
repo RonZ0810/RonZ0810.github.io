@@ -1,0 +1,225 @@
+{
+  "license": "CC0-1.0",
+  "licenseUrl": "https://polyhaven.com/license",
+  "assets": [
+    {
+      "id": "modern_arm_chair_01",
+      "source": "https://polyhaven.com/a/modern_arm_chair_01",
+      "resolution": "1K",
+      "runtimeFile": "modern_arm_chair_01.glb",
+      "processing": "glTF Transform 4.4.0, meshopt, simplify error 0.001; original JPEG textures retained",
+      "sourceFiles": [
+        {
+          "path": "modern_arm_chair_01/model.gltf",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/modern_arm_chair_01/modern_arm_chair_01_1k.gltf",
+          "bytes": 5121,
+          "md5": "a5ce303bc2962fe98b733fcdfa5a842b"
+        },
+        {
+          "path": "modern_arm_chair_01/textures/modern_arm_chair_01_pillow_nor_gl_1k.jpg",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/modern_arm_chair_01/modern_arm_chair_01_pillow_nor_gl_1k.jpg",
+          "bytes": 302377,
+          "md5": "6804f34108fcc755f0c84dd3c638270c"
+        },
+        {
+          "path": "modern_arm_chair_01/textures/modern_arm_chair_01_legs_nor_gl_1k.jpg",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/modern_arm_chair_01/modern_arm_chair_01_legs_nor_gl_1k.jpg",
+          "bytes": 560864,
+          "md5": "7cece7eccf75588af5b5df9b095d2c97"
+        },
+        {
+          "path": "modern_arm_chair_01/textures/modern_arm_chair_01_pillow_arm_1k.jpg",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/modern_arm_chair_01/modern_arm_chair_01_pillow_arm_1k.jpg",
+          "bytes": 321223,
+          "md5": "772495ddbf26ca3de4b31298f10113b9"
+        },
+        {
+          "path": "modern_arm_chair_01/textures/modern_arm_chair_01_legs_diff_1k.jpg",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/modern_arm_chair_01/modern_arm_chair_01_legs_diff_1k.jpg",
+          "bytes": 460937,
+          "md5": "778f1897e07ff81b2bc338f3d463ad1f"
+        },
+        {
+          "path": "modern_arm_chair_01/textures/modern_arm_chair_01_legs_arm_1k.jpg",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/modern_arm_chair_01/modern_arm_chair_01_legs_arm_1k.jpg",
+          "bytes": 577931,
+          "md5": "9c69cb001df175bddf6d1c2436567fb7"
+        },
+        {
+          "path": "modern_arm_chair_01/modern_arm_chair_01.bin",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/modern_arm_chair_01/modern_arm_chair_01.bin",
+          "bytes": 240728,
+          "md5": "5a8f2ea1c79ea484140e484b2a621670"
+        },
+        {
+          "path": "modern_arm_chair_01/textures/modern_arm_chair_01_pillow_diff_1k.jpg",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/modern_arm_chair_01/modern_arm_chair_01_pillow_diff_1k.jpg",
+          "bytes": 228851,
+          "md5": "2e4f64c633c3cb1656ad3eabdb3f0607"
+        }
+      ]
+    },
+    {
+      "id": "Camera_01",
+      "source": "https://polyhaven.com/a/Camera_01",
+      "resolution": "1K",
+      "runtimeFile": "Camera_01.glb",
+      "processing": "glTF Transform 4.4.0, meshopt, simplify error 0.001; original JPEG textures retained",
+      "sourceFiles": [
+        {
+          "path": "Camera_01/model.gltf",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/Camera_01/Camera_01_1k.gltf",
+          "bytes": 9886,
+          "md5": "c3fa6a2e13db2b6c6802725306089139"
+        },
+        {
+          "path": "Camera_01/textures/Camera_01_lens_body_arm_1k.jpg",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/Camera_01/Camera_01_lens_body_arm_1k.jpg",
+          "bytes": 163109,
+          "md5": "41a93d1239e491fc29349ff73d72436c"
+        },
+        {
+          "path": "Camera_01/textures/Camera_01_body_diff_1k.jpg",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/Camera_01/Camera_01_body_diff_1k.jpg",
+          "bytes": 175778,
+          "md5": "1ceb37036b60b4231c93d0cf383de3da"
+        },
+        {
+          "path": "Camera_01/textures/Camera_01_strap_arm_1k.jpg",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/Camera_01/Camera_01_strap_arm_1k.jpg",
+          "bytes": 159433,
+          "md5": "c9421b18be3daa84224f8856ddfab5d7"
+        },
+        {
+          "path": "Camera_01/textures/Camera_01_lens_body_nor_gl_1k.jpg",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/Camera_01/Camera_01_lens_body_nor_gl_1k.jpg",
+          "bytes": 147816,
+          "md5": "1098e1261b17084d081f32a6a05239de"
+        },
+        {
+          "path": "Camera_01/Camera_01.bin",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/Camera_01/Camera_01.bin",
+          "bytes": 845028,
+          "md5": "055c3af4c5dca45bfa4a3d9348563b88"
+        },
+        {
+          "path": "Camera_01/textures/Camera_01_lens_body_diff_1k.jpg",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/Camera_01/Camera_01_lens_body_diff_1k.jpg",
+          "bytes": 106198,
+          "md5": "45854840be875f1ea86cf8d830023922"
+        },
+        {
+          "path": "Camera_01/textures/Camera_01_body_nor_gl_1k.jpg",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/Camera_01/Camera_01_body_nor_gl_1k.jpg",
+          "bytes": 271892,
+          "md5": "51f1e690a469baddcbae1ee941a6acb4"
+        },
+        {
+          "path": "Camera_01/textures/Camera_01_body_arm_1k.jpg",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/Camera_01/Camera_01_body_arm_1k.jpg",
+          "bytes": 228449,
+          "md5": "1476ee36f1af6b22f2b509963b710f9a"
+        },
+        {
+          "path": "Camera_01/textures/Camera_01_strap_diff_1k.jpg",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/Camera_01/Camera_01_strap_diff_1k.jpg",
+          "bytes": 132449,
+          "md5": "c8bf1a037fddbc8447ce491059a4e443"
+        },
+        {
+          "path": "Camera_01/textures/Camera_01_strap_nor_gl_1k.jpg",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/Camera_01/Camera_01_strap_nor_gl_1k.jpg",
+          "bytes": 199844,
+          "md5": "5e35df574e5ec7ef76f34a803c7bd847"
+        }
+      ]
+    },
+    {
+      "id": "potted_plant_01",
+      "source": "https://polyhaven.com/a/potted_plant_01",
+      "resolution": "1K",
+      "runtimeFile": "potted_plant_01.glb",
+      "processing": "glTF Transform 4.4.0, meshopt, simplify error 0.001; original JPEG textures retained",
+      "sourceFiles": [
+        {
+          "path": "potted_plant_01/model.gltf",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/potted_plant_01/potted_plant_01_1k.gltf",
+          "bytes": 7969,
+          "md5": "199e9e3d68f5447142db4066d60ae3f0"
+        },
+        {
+          "path": "potted_plant_01/textures/potted_plant_01_pot_rough_1k.jpg",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/potted_plant_01/potted_plant_01_pot_rough_1k.jpg",
+          "bytes": 173192,
+          "md5": "8f2e400f94843a9239229bfe99d16688"
+        },
+        {
+          "path": "potted_plant_01/textures/potted_plant_01_leaves_nor_gl_1k.jpg",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/potted_plant_01/potted_plant_01_leaves_nor_gl_1k.jpg",
+          "bytes": 177105,
+          "md5": "0a7ea996bb2a4e9e19a5299a5b654406"
+        },
+        {
+          "path": "potted_plant_01/textures/potted_plant_01_pot_diff_1k.jpg",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/potted_plant_01/potted_plant_01_pot_diff_1k.jpg",
+          "bytes": 204900,
+          "md5": "67114dcd68232a6da88c627e144e65c4"
+        },
+        {
+          "path": "potted_plant_01/potted_plant_01.bin",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/potted_plant_01/potted_plant_01.bin",
+          "bytes": 5345188,
+          "md5": "18377bd8d99b20a8d5fc5cf03cbf94b2"
+        },
+        {
+          "path": "potted_plant_01/textures/potted_plant_01_leaves_rough_1k.jpg",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/potted_plant_01/potted_plant_01_leaves_rough_1k.jpg",
+          "bytes": 91706,
+          "md5": "6251bfd59ced0360c16d9c286adbb131"
+        },
+        {
+          "path": "potted_plant_01/textures/potted_plant_01_pot_nor_gl_1k.jpg",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/potted_plant_01/potted_plant_01_pot_nor_gl_1k.jpg",
+          "bytes": 200349,
+          "md5": "7388c8cba421175fd70969df077988a1"
+        },
+        {
+          "path": "potted_plant_01/textures/potted_plant_01_leaves_diff_1k.jpg",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/potted_plant_01/potted_plant_01_leaves_diff_1k.jpg",
+          "bytes": 124730,
+          "md5": "8cbaaa24c18c61be4201c473773dbffc"
+        }
+      ]
+    },
+    {
+      "id": "wood_floor",
+      "source": "https://polyhaven.com/a/wood_floor",
+      "files": [
+        {
+          "path": "wood/color-1k.jpg",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_floor/wood_floor_diff_1k.jpg",
+          "bytes": 734493,
+          "md5": "b7e927d2bf2f8f103820ff3890c8407c"
+        },
+        {
+          "path": "wood/normal-1k.jpg",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_floor/wood_floor_nor_gl_1k.jpg",
+          "bytes": 423303,
+          "md5": "620f174d2c09b579c5d02d37b2106668"
+        },
+        {
+          "path": "wood/roughness-1k.jpg",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_floor/wood_floor_rough_1k.jpg",
+          "bytes": 527754,
+          "md5": "36146634f1dbd1bc30cd071857584c10"
+        },
+        {
+          "path": "wood/color-2k.jpg",
+          "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/wood_floor/wood_floor_diff_2k.jpg",
+          "bytes": 2983667,
+          "md5": "d209b7416b022ed06093aef068c7fe23"
+        }
+      ]
+    }
+  ]
+}
