@@ -2,7 +2,7 @@
 
 Run `npm run dev` for the local preview and `npm run build` for GitHub Pages output. `npm test -- --workers=1` runs ground-navigation unit tests, builds the site, and runs the browser suite. The published site uses local assets and has no backend.
 
-CI uses one browser worker for software WebGL rendering, 15-second asynchronous assertions, and a 60-second per-test limit. Failed runs upload traces, screenshots, and error context as `playwright-failures`.
+CI uses the official Playwright container, pinned to version 1.61.1 and an image digest. Its browsers and OS dependencies are preinstalled; keep the image version aligned with the locked Playwright dependency. CI uses one browser worker for software WebGL rendering, 15-second asynchronous assertions, and a 60-second per-test limit. Failed runs upload traces, screenshots, and error context as `playwright-failures`.
 
 ## Explore
 

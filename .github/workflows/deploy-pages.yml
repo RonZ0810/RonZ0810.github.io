@@ -17,6 +17,11 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Keep this version aligned with @playwright/test in package-lock.json.
+    # The image includes Chromium and its OS dependencies, avoiding unrelated apt mirrors.
+    container:
+      image: mcr.microsoft.com/playwright:v1.61.1-noble@sha256:cf0daee9b994042e011bc29f20cdff1a9f682a039b43fcd738f7d8a9d3bcd9d6
+      options: --init --shm-size=1gb
     steps:
       - name: Check out source
         uses: actions/checkout@v6
@@ -30,8 +35,6 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Install browser for verification
-        run: npx playwright install --with-deps chromium
       - name: Build and test static routes
         run: npm test
       - name: Upload browser failure diagnostics
