@@ -75,10 +75,12 @@ export function createOffice(owner) {
   };
   m.oak.name = 'oak';
   owner.roomMaterials = m;
-  const envScene = new RoomEnvironment(), pmrem = new THREE.PMREMGenerator(owner.renderer);
-  owner.environmentTarget = pmrem.fromScene(envScene, 0.025);
-  owner.scene.environment = owner.environmentTarget.texture; owner.scene.environmentIntensity = 0.45;
-  envScene.dispose(); pmrem.dispose();
+  if (!owner.softwareRenderer) {
+    const envScene = new RoomEnvironment(), pmrem = new THREE.PMREMGenerator(owner.renderer);
+    owner.environmentTarget = pmrem.fromScene(envScene, 0.025);
+    owner.scene.environment = owner.environmentTarget.texture; owner.scene.environmentIntensity = 0.45;
+    envScene.dispose(); pmrem.dispose();
+  }
   owner.scene.add(new THREE.HemisphereLight('#edf3fb', '#b4a18b', 1.15));
   const sun = new THREE.DirectionalLight('#fff1d7', 3.4);
   sun.position.set(-8, 5.5, -1.5); sun.target.position.set(0, 0, -0.2); sun.castShadow = true;
@@ -208,6 +210,12 @@ export function createOffice(owner) {
   }
   addOfficeDetails(owner, room, m, { box, cylinder, rod, group, canvasTexture, material });
   batchStaticGeometry(room);
+  if (owner.softwareRenderer) {
+    simplifySoftwareMaterials(owner, owner.scene);
+    for (const key of Object.keys(m)) m[key] = owner.materialVariants.get(m[key]) ?? m[key];
+    owner.lampMaterial = owner.materialVariants.get(owner.lampMaterial) ?? owner.lampMaterial;
+    owner.ceilingMaterial = owner.materialVariants.get(owner.ceilingMaterial) ?? owner.ceilingMaterial;
+  }
   owner.essentialAssets = loadWood(owner, m);
   owner.decorativeAssets = owner.essentialAssets.then(() => owner.destroyed ? [] : Promise.allSettled([
     loadModel(owner, 'modern_arm_chair_01', chairRoot, chairProxy, 1.05, Math.PI),
@@ -315,7 +323,8 @@ async function loadGardenShrubs(owner, garden) {
 }
 async function loadWood(owner, m) {
   const tier = owner.mobile ? '1k' : '2k', loader = new THREE.TextureLoader();
-  const results = await Promise.allSettled(['color', 'normal', 'roughness'].map(name => loader.loadAsync(`/office/wood/${name}-${name === 'color' ? tier : '1k'}.jpg`)));
+  const channels = owner.softwareRenderer ? ['color'] : ['color', 'normal', 'roughness'];
+  const results = await Promise.allSettled(channels.map(name => loader.loadAsync(`/office/wood/${name}-${name === 'color' ? tier : '1k'}.jpg`)));
   if (owner.destroyed) { results.forEach(r => r.status === 'fulfilled' && r.value.dispose()); return; }
   const names = ['map', 'normalMap', 'roughnessMap'];
   results.forEach((result, i) => {
@@ -342,6 +351,7 @@ async function loadModel(owner, id, parent, proxy, height, yaw) {
   const scaled = new THREE.Box3().setFromObject(model), center = scaled.getCenter(new THREE.Vector3());
   model.position.set(-center.x, -scaled.min.y, -center.z);
   model.traverse(object => { if (object.isMesh) { object.castShadow = true; object.receiveShadow = true; } });
+  if (owner.softwareRenderer) simplifySoftwareMaterials(owner, model);
   parent.add(model); parent.remove(proxy);
   // Fallbacks share materials with the room; dispose only their unique geometry here.
   (owner.retiredProxies ??= []).push(proxy); owner.invalidate(true);
@@ -389,4 +399,28 @@ function batchStaticGeometry(room) {
     room.add(batch);
     meshes.forEach(mesh => { mesh.removeFromParent(); mesh.geometry.dispose(); });
   }
+}
+
+// CPU rasterizers cannot sustain the full per-pixel PBR shader. Preserve the
+// diffuse artwork, transparency and real light controls with a lighter shader.
+// Hardware GPUs keep the original materials and reflection/normal-map detail.
+function simplifySoftwareMaterials(owner, root) {
+  owner.materialVariants ??= new WeakMap();
+  const convert = original => {
+    if (!original?.isMeshStandardMaterial) return original;
+    if (owner.materialVariants.has(original)) return owner.materialVariants.get(original);
+    const replacement = new THREE.MeshLambertMaterial({
+      color: original.color, map: original.map, alphaMap: original.alphaMap,
+      emissive: original.emissive, emissiveMap: original.emissiveMap,
+      emissiveIntensity: original.emissiveIntensity, transparent: original.transparent,
+      opacity: original.opacity, depthWrite: original.depthWrite, side: original.side,
+      alphaTest: original.alphaTest, vertexColors: original.vertexColors,
+    });
+    replacement.name = original.name;
+    owner.materialVariants.set(original, replacement); original.dispose();
+    return replacement;
+  };
+  root.traverse(object => {
+    if (object.material) object.material = Array.isArray(object.material) ? object.material.map(convert) : convert(object.material);
+  });
 }

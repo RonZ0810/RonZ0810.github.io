@@ -60,3 +60,5 @@ Windows verification uses Playwright's full Chromium browser in its current head
 The first hosted run exposed severe desktop software-GPU fill-rate delays with the full Chromium mode (desktop page setup took 30-40 seconds while phone views were substantially faster). The software-only framebuffer budget bounds that cost without changing hardware quality. Test deadlines and assertions remain unchanged.
 
 CI stops after the first failing browser test to expose diagnostics promptly. A successful run still executes the entire suite; assertions, per-test deadlines and the one-worker configuration are unchanged.
+
+Software GPU backends use diffuse Lambert materials with the same color textures, emissive state and real lights. They skip unused reflection-environment generation and normal/roughness texture loads. Hardware keeps the complete PBR materials. This addresses the hosted trace showing about 0.8 seconds per frame and consequent input delays.

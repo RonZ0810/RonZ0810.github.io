@@ -24,3 +24,7 @@ Windows uses full Chromium headless mode; Linux CI retains its previously workin
 The first hosted run was stopped after its partial logs showed desktop software-GPU timeouts. The software framebuffer budget and platform-specific browser selection address the measured fill-rate cost; hardware-rendered visuals and test deadlines are unchanged.
 
 After the software-rendering correction, the complete local suite passed again (37 browser tests in 1.7 minutes and all 5 unit tests).
+
+A subsequent hosted trace showed 0.77-0.80 second room frames even with the pixel budget. Software backends therefore use a diffuse material variant that preserves color textures, transparency and real light toggles, and skip unused PBR reflection generation. Hardware materials are unchanged.
+
+The complete 37-test suite passed in the forced-software bundled headless shell after this material change (6.3 minutes). The software fan-view sample measured 83-100 ms scene-render intervals; hardware keeps its earlier PBR rendering path and quality.
