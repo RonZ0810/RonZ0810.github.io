@@ -10,6 +10,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : 2,
   expect: { timeout: process.env.CI ? 15_000 : 5_000 },
   reporter: [['list']],
+  maxFailures: process.env.CI ? 1 : 0,
   use: {
     // Windows' full Chromium uses its graphics backend reliably; retain the
     // established bundled headless shell on Linux's software-rendered runner.
