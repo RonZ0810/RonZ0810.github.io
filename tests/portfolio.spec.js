@@ -22,14 +22,17 @@ test.describe('static portfolio routes', () => {
       await expect(page.locator('main')).toBeVisible();
       await expect(page.locator('main h1')).toBeVisible();
       await expect(page.locator('body')).toHaveAttribute('data-scene', scene);
-      await expect(page.locator('#site-header')).toBeVisible();
+      await expect(page.locator('body')).toHaveClass(/scene-ready/);
+      await expect(page.locator('#site-header')).toBeHidden();
     });
   }
 });
 
 test('enhanced navigation updates static content and browser history', async ({ page }) => {
   await page.goto('/');
-  const aboutLink = page.locator('#site-header a[href="/about/"]');
+  await expect(page.locator('body')).toHaveClass(/scene-ready/);
+  await page.locator('[data-room-list]').click();
+  const aboutLink = page.locator('#room-objects a[href="/about/"]');
   await expect(aboutLink).toHaveCount(1);
   await aboutLink.click();
   await expect(page).toHaveURL(/\/about\/$/);
@@ -47,7 +50,10 @@ test('about annotations and contact dialog are keyboard accessible', async ({ pa
   await expect(annotation).toHaveAttribute('aria-expanded', 'true');
   await expect(page.locator('#about-background')).toBeVisible();
 
-  const contactButton = page.locator('#site-header [data-contact-open]');
+  await page.locator('[data-panel-close]').click();
+  await page.locator('[data-office-motion]').click();
+  await page.locator('[data-room-list]').click();
+  const contactButton = page.locator('#room-objects [data-object-action=contact]');
   await expect(contactButton).toHaveCount(1);
   await contactButton.click();
   const dialog = page.locator('#contact-dialog');

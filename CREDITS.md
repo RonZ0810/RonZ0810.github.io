@@ -11,3 +11,9 @@ The office combines original Three.js architecture, furniture, printed artwork, 
 The complete download URLs, byte sizes, and checksums are in `public/office/sources.json`. `node scripts/fetch-office-assets.mjs` verifies source downloads into `.cache/office`; `powershell -File scripts/optimize-office-assets.ps1` produces the shipped GLB files with meshopt compression and conservative mesh simplification. Source JPEG textures remain unchanged. Only wood color uses 2K on desktop; normal and roughness maps use 1K on all devices. The room poster is a render of this scene. Outfit remains self-hosted under OFL-1.1. No tracking or audio is added to the portfolio.
 
 Poly Haven's license: https://polyhaven.com/license.
+
+### Original office detailing
+
+Window hardware/screens, electrical equipment and cables, ceiling fan/switches, desktop artwork, fine surface maps, key legends and business card are original procedural assets in `src/office-details.js`. They are stored as local source, not downloaded at runtime. See `public/office/original-details.json`.
+
+The screen is an illustrative Windows 11 style desktop, not an operating system screenshot or an embedded desktop. Windows, Visual Studio Code, OpenAI and Google Chrome names and recognisable icon motifs identify their respective products; the locally drawn illustrations are not included in the CC0 asset claims. No affiliation or endorsement is implied.

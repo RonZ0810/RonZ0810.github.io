@@ -7,6 +7,18 @@ async function ready(page, route = '/') {
   await expect(page.locator('[data-study-scene]')).toHaveAttribute('data-assets', 'ready', { timeout: 45_000 });
 }
 const scene = page => page.locator('[data-study-scene]');
+async function choose(page, href) {
+  if(await page.locator('[data-panel-close]').isVisible()) await page.locator('[data-panel-close]').click();
+  await page.locator('[data-room-list]').click();
+  await page.locator(`#room-objects a[href="${href}"]`).click();
+  await expect(page.locator('body')).not.toHaveClass(/is-navigating/);
+}
+async function action(page, name) {
+  if(await page.locator('[data-panel-close]').isVisible()) await page.locator('[data-panel-close]').click();
+  await page.locator('[data-room-list]').click();
+  await page.locator(`#room-objects [data-object-action="${name}"]`).click();
+}
+
 async function position(page) { return scene(page).evaluate(el => ({ x: Number(el.dataset.playerX), z: Number(el.dataset.playerZ), height: Number(el.dataset.eyeHeight) })); }
 async function arrived(page, key) {
   const goal = sceneRoutes[key].position;
@@ -14,14 +26,14 @@ async function arrived(page, key) {
   await expect(page.locator(`[data-study-scene][data-player-x="${goal.x.toFixed(3)}"][data-player-z="${goal.z.toFixed(3)}"][data-eye-height="1.65"][data-walking="false"][data-zone="${goal.z > 2.5 ? 'hallway' : 'office'}"]`)).toBeAttached();
 }
 async function motionOff(page) { if (await page.locator('[data-office-motion]').getAttribute('aria-pressed') === 'true') await page.locator('[data-office-motion]').click(); }
-const posterStyle = '#page-content,.office-caption,.office-controls,.hotspot-layer,.motion-control,.walk-stick{visibility:hidden!important}';
+const posterStyle = '#page-content,.office-caption,.office-controls,.hotspot-layer,.motion-control,.walk-stick,.room-list-trigger{visibility:hidden!important}';
 
 test('Home starts in the hallway and entering keeps the camera at standing height', async ({ page }) => {
   await ready(page);
   await arrived(page, 'home');
   await page.locator('[data-office-enter]').click(); await arrived(page, 'entry');
   await expect(page).toHaveURL(/\/$/); await expect(page.locator('.home-intro')).toBeHidden();
-  await page.locator('.site-nav a[href="/"]').click(); await arrived(page, 'home');
+  await choose(page, '/'); await arrived(page, 'home');
   await expect(page.locator('.home-intro')).toBeVisible();
   await expect(page.locator('[data-office-enter]')).toBeEnabled();
 });
@@ -45,16 +57,16 @@ test('looking turns in place and manual walking keeps standing height', async ({
 
 test('losing scene focus clears held walking input', async ({ page }) => {
   await ready(page, '/projects/'); await page.locator('[data-panel-close]').click();
-  await page.keyboard.down('w'); await page.locator('[data-contact-open]').focus();
+  await page.keyboard.down('w'); await page.locator('[data-office-motion]').focus();
   const stopped = await position(page);
-  await page.locator('[data-contact-open]').click(); await page.locator('dialog').press('Escape'); await page.keyboard.up('w');
+  await page.locator('[data-room-list]').click(); await page.locator('#room-objects').press('Escape'); await page.keyboard.up('w');
   expect(await position(page)).toEqual(stopped);
 });
 
 test('every portfolio destination opens its panel at a valid standing viewpoint', async ({ page }) => {
   await ready(page); await motionOff(page);
   for (const key of ['about', 'projects', 'experience', 'education', 'hobbies']) {
-    await page.locator(`#site-header a[href="/${key}/"]`).click();
+    await choose(page, `/${key}/`);
     await expect(page.locator('body')).toHaveAttribute('data-route', key); await arrived(page, key);
     await expect(page.locator('main h1')).toBeFocused();
     await page.locator('[data-panel-close]').click(); await expect(page.locator('main')).toBeHidden();
@@ -63,14 +75,14 @@ test('every portfolio destination opens its panel at a valid standing viewpoint'
 
 test('lamp, notebook, and held sculpture remain first person across routes', async ({ page }) => {
   await ready(page); await motionOff(page);
-  await page.locator('[data-office-lamp]').click(); await expect(scene(page)).toHaveAttribute('data-lamp', 'off');
-  await page.locator('[data-office-notebook]').click(); await expect(scene(page)).toHaveAttribute('data-notebook', 'open');
-  await page.locator('[data-office-inspect]').click(); await expect(scene(page)).toHaveAttribute('data-inspection', 'sculpture');
+  await action(page, 'lamp'); await expect(scene(page)).toHaveAttribute('data-lamp', 'off');
+  await action(page, 'notebook'); await expect(scene(page)).toHaveAttribute('data-notebook', 'open');
+  await action(page, 'inspect'); await expect(scene(page)).toHaveAttribute('data-inspection', 'sculpture');
   const before = await position(page), yaw = await scene(page).getAttribute('data-view-angle');
   await scene(page).press('ArrowRight'); await expect(scene(page)).toHaveAttribute('data-view-angle', yaw);
   expect(await position(page)).toEqual(before); await scene(page).press('Escape');
   await expect(scene(page)).toHaveAttribute('data-inspection', 'none'); expect(await position(page)).toEqual(before);
-  await page.locator('#site-header a[href="/education/"]').click(); await arrived(page, 'education');
+  await choose(page, '/education/'); await arrived(page, 'education');
   await page.locator('[data-panel-close]').click();
   await expect(page.locator('[data-office-lamp]')).toHaveAttribute('aria-pressed', 'false');
   await expect(page.locator('[data-office-notebook]')).toHaveAttribute('aria-pressed', 'true');
@@ -84,8 +96,8 @@ test('manual movement cancels automatic travel', async ({ page }) => {
 
 test('newer destinations replace older walking paths', async ({ page }) => {
   await ready(page);
-  await page.locator('#site-header a[href="/education/"]').click();
-  await page.locator('#site-header a[href="/projects/"]').click();
+  await choose(page, '/education/');
+  await choose(page, '/projects/');
   await expect(page).toHaveURL(/\/projects\/$/);
   await arrived(page, 'projects');
 });
@@ -103,7 +115,7 @@ test('failed decorative models retain navigation and the enclosed office', async
   await page.route('**/office/*.glb', route => route.abort()); await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/scene-ready/);
   await expect(scene(page)).toHaveAttribute('data-assets', 'partial'); await motionOff(page);
-  await page.locator('#site-header a[href="/hobbies/"]').click(); await arrived(page, 'hobbies');
+  await choose(page, '/hobbies/'); await arrived(page, 'hobbies');
   await expect(page.locator('main h1')).toBeVisible();
 });
 
@@ -149,7 +161,7 @@ test('mobile thumbstick moves the player and the bottom sheet scrolls independen
   await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ id: 0, x, y: y - 25 }, { id: 1, x: 235, y: 240 }] });
   await expect(scene(page)).not.toHaveAttribute('data-view-angle', yaw);
   await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  await page.locator('#site-header a[href="/hobbies/"]').tap(); await expect(page.locator('body')).toHaveClass(/panel-open/);
+  await choose(page, '/hobbies/'); await expect(page.locator('body')).toHaveClass(/panel-open/);
   await page.locator('.object-list').scrollIntoViewIfNeeded();
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
   await expect.poll(() => page.locator('main').evaluate(el => el.scrollTop)).toBeGreaterThan(0);

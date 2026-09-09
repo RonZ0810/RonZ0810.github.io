@@ -20,6 +20,7 @@ export class StudyScene {
   constructor(container, options = {}) {
     if (!supportsWebGL()) throw new Error('WebGL 2 is unavailable.');
     this.container = container;
+    this.onContact = options.onContact ?? (() => {});
     this.onHotspot = options.onHotspot ?? (() => {});
     this.onTransitionState = options.onTransitionState ?? (() => {});
     this.onState = options.onState ?? (() => {});
@@ -31,6 +32,9 @@ export class StudyScene {
     this.camera = new THREE.PerspectiveCamera(60, 1, 0.035, 70);
     this.camera.rotation.order = 'YXZ'; this.scene.add(this.camera);
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'default' });
+    const gl = this.renderer.getContext(), debug = gl.getExtension('WEBGL_debug_renderer_info');
+    this.softwareRenderer = Boolean(debug && /swiftshader|llvmpipe|software/i.test(gl.getParameter(debug.UNMASKED_RENDERER_WEBGL)));
+    this.container.dataset.renderer = this.softwareRenderer ? 'software' : 'hardware';
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.08;
@@ -42,6 +46,7 @@ export class StudyScene {
     this.walkMap = new WalkMap(); this.position = { ...getSceneRoute('home').position };
     Object.assign(this, viewToward(this.position, getSceneRoute('home').target));
     this.clickables = []; this.hotspotElements = []; this.keys = new Set(); this.stick = { x: 0, y: 0 };
+    this.velocity = { x: 0, z: 0 }; this.stepPhase = 0; this.bob = 0; this.fanOn = true; this.ceilingOn = true;
     this.currentKey = 'home'; this.lampOn = true; this.notebookOpen = false; this.inspecting = false;
     this.panelOpen = false; this.exploring = false; this.paused = false; this.frame = 0; this.framingPitch = 0;
     this.renderFrame = this.renderFrame.bind(this);
@@ -52,7 +57,7 @@ export class StudyScene {
     this.resize(); this.syncState();
   }
   registerClickable(object, action) { object.userData.action = action; this.clickables.push(object); }
-  setHotspotElements(elements) { this.hotspotElements = [...elements].map(element => ({ element, key: element.dataset.hotspot })).filter(({ key }) => hotspotPoints[key]); this.invalidate(); }
+  setHotspotElements(elements) { this.hotspotView = null; this.hotspotElements = [...elements].map(element => ({ element, key: element.dataset.hotspot })).filter(({ key }) => hotspotPoints[key]); this.invalidate(); }
   setReducedMotion(value) {
     this.reducedMotion = value;
     if (value) { this.skipTransition(); this.notebookHinge.rotation.z = this.notebookOpen ? Math.PI * 0.84 : 0; }
@@ -93,7 +98,7 @@ export class StudyScene {
     this.finishTravel(); this.turnTarget = null; this.invalidate();
   }
   clearInputs() {
-    this.keys.clear(); this.stick = { x: 0, y: 0 }; this.drag = null;
+    this.keys.clear(); this.velocity = { x: 0, z: 0 }; this.stick = { x: 0, y: 0 }; this.drag = null;
     const knob = document.querySelector('[data-walk-stick] span'); if (knob) knob.style.transform = '';
     this.lastTime = null;
   }
@@ -107,13 +112,23 @@ export class StudyScene {
   toggleNotebook() { this.notebookOpen = !this.notebookOpen; this.syncState(); this.invalidate(); }
   objectAction(type) {
     if (this.inspecting) this.exitInspection();
-    const key = type === 'inspect' ? 'projects' : 'about';
-    const execute = () => type === 'lamp' ? this.toggleLamp() : type === 'notebook' ? this.toggleNotebook() : this.inspect();
+    const key = ['fan', 'ceiling'].includes(type) ? 'switches' : type === 'inspect' ? 'projects' : 'about';
+    const execute = () => {
+      if (type === 'lamp') this.toggleLamp();
+      else if (type === 'notebook') this.toggleNotebook();
+      else if (type === 'contact') this.onContact();
+      else if (type === 'fan' || type === 'ceiling') {
+        if (type === 'fan') this.fanOn = !this.fanOn;
+        else { this.ceilingOn = !this.ceilingOn; this.ceilingLight.intensity = this.ceilingOn ? 16 : 0; this.ceilingMaterial.emissiveIntensity = this.ceilingOn ? 1.3 : 0; }
+        this.wallSwitches[type].rotation.x = (type === 'fan' ? this.fanOn : this.ceilingOn) ? -.12 : .12;
+        this.syncState(); this.invalidate();
+      } else this.inspect();
+    };
     if (distance(this.position, getSceneRoute(key).position) > 0.7) this.travelTo(key, { onArrival: execute });
     else execute();
   }
   inspect() {
-    this.clearInputs(); this.inspecting = true; this.exploring = true;
+    this.cancelTravel(); this.clearInputs(); this.inspecting = true; this.exploring = true;
     this.camera.add(this.sculpture); this.sculpture.position.set(0, -0.08, -0.62); this.sculpture.quaternion.identity();
     this.sculpture.castShadow = false; this.sculpture.renderOrder = 3;
     this.setHighlight(null); this.syncState(); this.invalidate(true);
@@ -131,9 +146,10 @@ export class StudyScene {
     } else this.objectAction(action.type);
   }
   syncState() {
-    const state = { lampOn: this.lampOn, notebookOpen: this.notebookOpen, inspecting: this.inspecting, reducedMotion: this.reducedMotion, walking: Boolean(this.travel), exploring: this.exploring, panelOpen: this.panelOpen, zone: this.position.z > 2.5 ? 'hallway' : 'office' };
+    const state = { fanOn: this.fanOn, ceilingOn: this.ceilingOn, lampOn: this.lampOn, notebookOpen: this.notebookOpen, inspecting: this.inspecting, reducedMotion: this.reducedMotion, walking: Boolean(this.travel), exploring: this.exploring, panelOpen: this.panelOpen, zone: this.position.z > 2.5 ? 'hallway' : 'office' };
     this.container.dataset.lamp = this.lampOn ? 'on' : 'off'; this.container.dataset.notebook = this.notebookOpen ? 'open' : 'closed';
     this.container.dataset.inspection = this.inspecting ? 'sculpture' : 'none'; this.container.dataset.walking = String(state.walking);
+    this.container.dataset.fan = this.fanOn ? 'on' : 'off'; this.container.dataset.ceilingLight = this.ceilingOn ? 'on' : 'off';
     this.onState(state);
   }
   bindEvents() {
@@ -224,7 +240,7 @@ export class StudyScene {
   resize() {
     if (this.destroyed) return;
     this.camera.aspect = Math.max(1, this.container.clientWidth) / Math.max(1, this.container.clientHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.mobile ? 1.25 : 1.5));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.softwareRenderer ? .65 : this.mobile ? 1.25 : 1.5));
     this.renderer.setSize(this.container.clientWidth, this.container.clientHeight, false); this.camera.updateProjectionMatrix(); this.invalidate();
   }
   updateHotspots() {
@@ -232,7 +248,7 @@ export class StudyScene {
     this.hotspotElements.forEach(({ element, key }) => {
       const world = new THREE.Vector3(...hotspotPoints[key]), point = world.clone().project(this.camera);
       const x = (point.x * 0.5 + 0.5) * bounds.width, y = (-point.y * 0.5 + 0.5) * bounds.height;
-      let visible = !this.panelOpen && !this.inspecting && this.position.z < 2.5 && point.z > -1 && point.z < 1 && x > 55 && x < bounds.width - 55 && y > 55 && y < bounds.height - 130 && !occupied.some(p => Math.abs(p.x - x) < 112 && Math.abs(p.y - y) < 36);
+      let visible = !this.panelOpen && !this.inspecting && (key === 'home' || this.position.z < 2.5) && point.z > -1 && point.z < 1 && x > 55 && x < bounds.width - 55 && y > 55 && y < bounds.height - 130 && !occupied.some(p => Math.abs(p.x - x) < 112 && Math.abs(p.y - y) < 36);
       if (visible) {
         const length = world.distanceTo(this.camera.position);
         this.raycaster.set(this.camera.position, world.sub(this.camera.position).normalize());
@@ -240,7 +256,7 @@ export class StudyScene {
         if (occluder && occluder.distance < length - 0.14) {
           let object = occluder.object;
           while (object && !object.userData.action) object = object.parent;
-          visible = object?.userData.action.href === `/${key}/`;
+          visible = object?.userData.action.href === (key === 'home' ? '/' : `/${key}/`) || object?.userData.action.type === key;
         }
       }
       element.hidden = !visible;
@@ -248,6 +264,7 @@ export class StudyScene {
     });
   }
   invalidate(shadows = false) {
+    if (shadows) this.hotspotView = null;
     if (shadows && this.renderer) this.renderer.shadowMap.needsUpdate = true;
     if (this.destroyed || this.contextLost || this.paused || document.hidden || this.frame) return;
     this.frame = requestAnimationFrame(this.renderFrame);
@@ -256,14 +273,24 @@ export class StudyScene {
   renderFrame(time) {
     this.frame = 0; if (this.destroyed || this.contextLost || this.paused) return;
     const elapsed = (time - (this.lastTime ?? time - 16)) / 1000;
+    // Thirty fan-only frames per second suffice; input and camera travel remain responsive.
+    const active = this.keys.size || this.travel || this.turnTarget || this.drag || Math.hypot(this.stick.x,this.stick.y) || Math.hypot(this.velocity.x,this.velocity.z) > .002;
+    if (!active && this.lastTime && elapsed < (this.softwareRenderer ? 1/12 : 1/30) && !this.renderer.shadowMap.needsUpdate) { this.invalidate(); return; }
     const dt = Math.min(elapsed, 0.1); this.lastTime = time;
     const blend = this.reducedMotion ? 1 : 1 - Math.exp(-dt * 12);
     const forward = (Number(this.keys.has('w')) - Number(this.keys.has('s'))) - this.stick.y;
     const strafe = (Number(this.keys.has('d')) - Number(this.keys.has('a'))) + this.stick.x;
+    const oldPosition = { ...this.position };
     const manual = !this.panelOpen && !this.inspecting && (forward || strafe);
-    if (manual) {
-      const divisor = Math.max(1, Math.hypot(forward, strafe));
-      this.position = this.walkMap.slide(this.position, (-Math.sin(this.yaw) * forward + Math.cos(this.yaw) * strafe) / divisor * WALK_SPEED * dt, (-Math.cos(this.yaw) * forward - Math.sin(this.yaw) * strafe) / divisor * WALK_SPEED * dt);
+    const divisor = Math.max(1, Math.hypot(forward, strafe));
+    const targetX = manual ? (-Math.sin(this.yaw) * forward + Math.cos(this.yaw) * strafe) / divisor * WALK_SPEED : 0;
+    const targetZ = manual ? (-Math.cos(this.yaw) * forward - Math.sin(this.yaw) * strafe) / divisor * WALK_SPEED : 0;
+    const velocityBlend = 1 - Math.exp(-dt * (manual ? 9 : 15));
+    this.velocity.x = THREE.MathUtils.lerp(this.velocity.x, targetX, velocityBlend);
+    this.velocity.z = THREE.MathUtils.lerp(this.velocity.z, targetZ, velocityBlend);
+    const coasting = !this.panelOpen && !this.inspecting && Math.hypot(this.velocity.x,this.velocity.z) > .002;
+    if (manual || coasting) {
+      this.position = this.walkMap.slide(this.position, this.velocity.x * dt, this.velocity.z * dt);
     } else if (this.travel) {
       const point = this.travel.path[0], gap = distance(this.position, point), step = WALK_SPEED * Math.min(elapsed, 0.5);
       if (gap <= step) { this.position = { ...point }; this.travel.path.shift(); if (!this.travel.path.length) this.finishTravel(); }
@@ -285,15 +312,32 @@ export class StudyScene {
     const framingTarget = this.panelOpen && window.innerWidth <= 700 ? -0.32 : 0;
     this.framingPitch = THREE.MathUtils.lerp(this.framingPitch, framingTarget, blend);
     const viewPitch = clamp(this.pitch + this.framingPitch, -Math.PI * 0.42, Math.PI * 0.42);
-    this.camera.position.set(this.position.x, EYE_HEIGHT, this.position.z); this.camera.rotation.set(viewPitch, this.yaw, 0, 'YXZ'); this.camera.updateMatrixWorld();
+    const moved = distance(oldPosition, this.position);
+    if (moved > .00001) this.stepPhase += moved * Math.PI * 2 / .78;
+    const bobTarget = !this.reducedMotion && !this.panelOpen && !this.inspecting && moved > .00001 ? Math.sin(this.stepPhase) * .012 : 0;
+    this.bob = this.reducedMotion ? 0 : THREE.MathUtils.lerp(this.bob, bobTarget, blend);
+    if (Math.abs(this.bob) < .00001) this.bob = 0;
+    this.camera.position.set(this.position.x, EYE_HEIGHT + this.bob, this.position.z); this.camera.rotation.set(viewPitch, this.yaw, 0, 'YXZ'); this.camera.updateMatrixWorld();
+    const fanBounds = new THREE.Sphere(new THREE.Vector3(0,2.82,-.4),.75);
+    const frustum = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(this.camera.projectionMatrix,this.camera.matrixWorldInverse));
+    const fanAnimating = this.fanOn && !this.reducedMotion && frustum.intersectsSphere(fanBounds);
+    if (fanAnimating) this.fanRotor.rotation.y = (this.fanRotor.rotation.y + dt * 2.1) % (Math.PI * 2);
     const bookTarget = this.notebookOpen ? Math.PI * 0.84 : 0, bookWasMoving = Math.abs(this.notebookHinge.rotation.z - bookTarget) > 0.002;
     this.notebookHinge.rotation.z = THREE.MathUtils.lerp(this.notebookHinge.rotation.z, bookTarget, blend);
     const bookMoving = Math.abs(this.notebookHinge.rotation.z - bookTarget) > 0.002;
     if (bookWasMoving && !bookMoving) this.renderer.shadowMap.needsUpdate = true;
     this.scene.updateMatrixWorld(true); if (this.highlighted) this.highlight.box.setFromObject(this.highlighted).expandByScalar(0.012);
-    this.updateHotspots(); this.renderer.render(this.scene, this.camera);
-    Object.assign(this.container.dataset, { playerX: this.position.x.toFixed(3), playerZ: this.position.z.toFixed(3), eyeHeight: String(EYE_HEIGHT), viewAngle: this.yaw.toFixed(3), viewPitch: viewPitch.toFixed(3), zone: this.position.z > 2.5 ? 'hallway' : 'office' });
-    if (manual || this.travel || turning || bookMoving || Math.abs(this.framingPitch - framingTarget) > 0.001) this.invalidate(); else this.lastTime = null;
+    for (const [selector,key] of [['[data-office-lamp]','about'],['[data-office-notebook]','about'],['[data-office-inspect]','projects']]) {
+      const el=document.querySelector(selector); if(el) el.hidden=this.inspecting || distance(this.position,getSceneRoute(key).position) > 1;
+    }
+    const hotspotView = [this.position.x,this.position.z,this.yaw,viewPitch,this.bob,this.panelOpen,this.inspecting,this.camera.aspect].join(',');
+    if (this.hotspotView !== hotspotView) { this.updateHotspots(); this.hotspotView = hotspotView; }
+    const renderStart=performance.now(); this.renderer.render(this.scene, this.camera);
+    this.container.dataset.renderMs=(performance.now()-renderStart).toFixed(2);
+    this.container.dataset.renderIntervalMs=(elapsed*1000).toFixed(2);
+    this.container.dataset.drawCalls=String(this.renderer.info.render.calls);
+    Object.assign(this.container.dataset, { playerX: this.position.x.toFixed(3), playerZ: this.position.z.toFixed(3), eyeHeight: String(EYE_HEIGHT), cameraHeight: this.camera.position.y.toFixed(5), speed: Math.hypot(this.velocity.x,this.velocity.z).toFixed(4), fanAngle: this.fanRotor.rotation.y.toFixed(4), viewAngle: this.yaw.toFixed(3), viewPitch: viewPitch.toFixed(3), zone: this.position.z > 2.5 ? 'hallway' : 'office' });
+    if (fanAnimating || coasting || Math.abs(this.bob) > .00001 || manual || this.travel || turning || bookMoving || Math.abs(this.framingPitch - framingTarget) > 0.001) this.invalidate(); else this.lastTime = null;
   }
   destroy() {
     this.destroyed = true; this.clearInputs(); this.stopFrame(); this.events?.abort(); this.resizeObserver?.disconnect();

@@ -11,6 +11,7 @@ export default defineConfig({
   expect: { timeout: process.env.CI ? 15_000 : 5_000 },
   reporter: [['list']],
   use: {
+    channel: 'chromium',
     baseURL: 'http://127.0.0.1:4174',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',

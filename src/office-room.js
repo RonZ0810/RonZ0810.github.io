@@ -1,10 +1,19 @@
 import * as THREE from 'three';
+import { desktopTexture, addOfficeDetails } from './office-details.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const material = (color, options = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.65, ...options });
 function box(parent, size, position, mat, radius = 0.015) {
   const geo = radius ? new RoundedBoxGeometry(...size, 2, Math.min(radius, ...size.map(v => v / 3))) : new THREE.BoxGeometry(...size);
+  if (mat.name === 'oak') {
+    const uv=geo.attributes.uv, pos=geo.attributes.position, normal=geo.attributes.normal;
+    for(let i=0;i<uv.count;i++) {
+      const nx=Math.abs(normal.getX(i)), ny=Math.abs(normal.getY(i)), nz=Math.abs(normal.getZ(i));
+      uv.setXY(i, nx>ny && nx>nz ? pos.getZ(i) : pos.getX(i), ny>nx && ny>nz ? pos.getZ(i) : pos.getY(i));
+    }
+  }
   const mesh = new THREE.Mesh(geo, mat);
   mesh.position.set(...position); mesh.castShadow = true; mesh.receiveShadow = true;
   parent.add(mesh); return mesh;
@@ -64,6 +73,7 @@ export function createOffice(owner) {
     metal: material('#a2a5a0', { metalness: 0.92, roughness: 0.23 }), orange: material('#b96743'),
     paper: material('#f4eddf', { roughness: 0.98 }), fabric: material('#dfd8c9', { map: fabricTexture(), roughness: 1 }),
   };
+  m.oak.name = 'oak';
   owner.roomMaterials = m;
   const envScene = new RoomEnvironment(), pmrem = new THREE.PMREMGenerator(owner.renderer);
   owner.environmentTarget = pmrem.fromScene(envScene, 0.025);
@@ -72,7 +82,7 @@ export function createOffice(owner) {
   owner.scene.add(new THREE.HemisphereLight('#edf3fb', '#b4a18b', 1.15));
   const sun = new THREE.DirectionalLight('#fff1d7', 3.4);
   sun.position.set(-8, 5.5, -1.5); sun.target.position.set(0, 0, -0.2); sun.castShadow = true;
-  sun.shadow.mapSize.set(owner.mobile ? 512 : 1024, owner.mobile ? 512 : 1024);
+  sun.shadow.mapSize.set(owner.softwareRenderer ? 256 : owner.mobile ? 512 : 1024, owner.softwareRenderer ? 256 : owner.mobile ? 512 : 1024);
   Object.assign(sun.shadow.camera, { left: -5, right: 5, top: 5, bottom: -5, near: 0.5, far: 20 });
   sun.shadow.normalBias = 0.035; sun.shadow.bias = -0.00012; sun.shadow.radius = 1.5;
   owner.scene.add(sun, sun.target); owner.sun = sun;
@@ -92,8 +102,6 @@ export function createOffice(owner) {
   for (const z of [-1.82, -0.62, 0.58, 1.78]) box(left, [0.16, 2.26, 0.055], [-3.4, 1.67, z], windowMat.clone());
   for (const y of [0.54, 2.8]) box(left, [0.16, 0.055, 3.65], [-3.4, y, -0.02], windowMat.clone());
   box(left, [0.34, 0.065, 3.86], [-3.31, 0.54, -0.02], m.white.clone());
-  const glass = new THREE.MeshPhysicalMaterial({ color: '#dce9ec', transparent: true, opacity: 0.15, roughness: 0.16, metalness: 0.05, depthWrite: false });
-  box(left, [0.025, 2.2, 3.54], [-3.46, 1.67, -0.02], glass, 0);
   createEnclosure(owner, room, m);
   const garden = createGarden(owner, m);
   box(room, [3.5, 0.018, 2.8], [-0.35, 0.024, 0.35], m.fabric, 0.045);
@@ -117,20 +125,14 @@ export function createOffice(owner) {
   box(monitor, [0.36, 0.023, 0.24], [0, 0, 0.025], m.metal);
   box(monitor, [0.065, 0.26, 0.05], [0, 0.14, -0.03], m.metal);
   box(monitor, [1.08, 0.64, 0.044], [0, 0.49, -0.02], m.dark, 0.025);
-  const screenMap = canvasTexture((ctx, w, h) => {
-    ctx.fillStyle = '#142a2c'; ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = '#89b1a9'; ctx.font = '18px sans-serif'; ctx.fillText('RONALD / SELECTED WORK', 36, 40);
-    ctx.fillStyle = '#e8e9df'; ctx.font = '48px sans-serif'; ctx.fillText('Ideas into', 36, 116); ctx.fillText('something real.', 36, 170);
-    ['#cb7c54', '#779a95', '#dad9c7'].forEach((color, i) => { ctx.fillStyle = color; ctx.fillRect(36 + i * 155, 224, 138, 78); });
-    ctx.fillStyle = '#90aca7'; ctx.font = '12px sans-serif'; ctx.fillText('PROJECTS     /     EXPLORE THE WORK', 36, 333);
-  }, 512, 360);
-  const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.015, 0.57), new THREE.MeshStandardMaterial({ map: screenMap, emissiveMap: screenMap, emissive: '#ffffff', emissiveIntensity: 0.32, roughness: 0.4 }));
+  const screenMap = desktopTexture(canvasTexture, owner.mobile);
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.015, 0.57), new THREE.MeshStandardMaterial({ map: screenMap, emissiveMap: screenMap, emissive: '#ffffff', emissiveIntensity: 0.20, roughness: 0.28 }));
   screen.position.set(0, 0.5, 0.005); monitor.add(screen);
   owner.registerClickable(monitor, { type: 'navigate', href: '/projects/', label: 'Projects · the monitor' });
   const keyboard = box(desk, [0.61, 0.025, 0.21], [0.45, 0.828, 0.34], m.metal);
   for (let r = 0; r < 4; r++) for (let c = 0; c < 14; c++) box(keyboard, [0.035, 0.006, 0.038], [-0.273 + c * 0.042, 0.016, -0.075 + r * 0.045], m.paper, 0.003);
-  box(desk, [0.07, 0.033, 0.115], [0.95, 0.84, 0.32], m.paper, 0.02);
-  const notebook = group(room, [-0.94, 0.834, 0.05]); notebook.rotation.y = -0.12;
+  box(desk, [0.07, 0.033, 0.115], [0.95, 0.829, 0.32], m.paper, 0.02);
+  const notebook = group(room, [-0.94, 0.8205, 0.05]); notebook.rotation.y = -0.12;
   box(notebook, [0.43, 0.016, 0.31], [0, 0, 0], m.orange);
   box(notebook, [0.414, 0.022, 0.29], [0, 0.017, 0], m.paper, 0.004);
   for (let i = 0; i < 4; i++) box(notebook, [0.415, 0.001, 0.29], [0, 0.01 + i * 0.004, 0], material('#c8c1b3'), 0);
@@ -152,7 +154,7 @@ export function createOffice(owner) {
   owner.lampLight.position.set(-1.22, 1.46, -0.75); owner.lampLight.target.position.set(-0.8, 0.78, -0.1);
   room.add(owner.lampLight, owner.lampLight.target);
   owner.registerClickable(lamp, { type: 'lamp', label: 'Switch desk lamp' });
-  const cup = group(desk, [0.88, 0.89, -0.25]);
+  const cup = group(desk, [0.88, 0.873, 0.05]);
   cylinder(cup, 0.054, 0.044, 0.12, [0, 0, 0], m.white);
   cylinder(cup, 0.044, 0.044, 0.002, [0, 0.061, 0], material('#443026'));
   const handle = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.009, 10, 24), m.white); handle.position.set(0.055, 0, 0); cup.add(handle);
@@ -181,28 +183,31 @@ export function createOffice(owner) {
   for (const x of [-0.56, 0.56]) for (const z of [-0.25, 0.25]) rod(consoleTable, [x, 0.03, z], [x, 0.8, z], 0.023, m.dark);
   box(consoleTable, [1.18, 0.035, 0.56], [0, 0.21, 0], m.oak);
   for (let i = 0; i < 3; i++) box(consoleTable, [0.42, 0.046, 0.32], [-0.27, 0.26 + i * 0.048, 0], material(colors[i]));
-  const cameraGroup = group(room, [2.63, 0.87, 0.36]); cameraGroup.rotation.y = 0.3;
+  const cameraGroup = group(room, [2.63, 0.863, 0.36]); cameraGroup.rotation.y = 0.3;
   const cameraProxy = group(cameraGroup);
   box(cameraProxy, [0.26, 0.17, 0.1], [0, 0.09, 0], m.dark);
   cylinder(cameraProxy, 0.06, 0.06, 0.12, [0, 0.09, 0.08], m.dark).rotation.x = Math.PI / 2;
   owner.registerClickable(cameraGroup, { type: 'navigate', href: '/hobbies/', label: 'Hobbies · the camera' });
-  const sculptureRoot = group(room, [0.76, 0.82, -0.12]);
+  const sculptureRoot = group(room, [0.76, 0.813, -0.12]);
   box(sculptureRoot, [0.2, 0.04, 0.19], [0, 0.02, 0], material('#77786f'));
   const sculpture = new THREE.Mesh(new THREE.TorusKnotGeometry(0.089, 0.022, 100, 14, 2, 3), material('#b78e54', { metalness: 0.85, roughness: 0.26 }));
   sculpture.position.y = 0.17; sculpture.castShadow = true; sculptureRoot.add(sculpture); owner.sculpture = sculpture;
   owner.registerClickable(sculptureRoot, { type: 'inspect', label: 'Inspect the bronze sculpture' });
-  const chairRoot = group(room, [-0.4, 0.05, 0.98]); chairRoot.rotation.y = -0.16;
-  const chairProxy = group(chairRoot);
+  const chairRoot = group(room, [-0.4, 0.035, 0.98]); chairRoot.rotation.y = -0.16;
+  const chairProxy = group(chairRoot); chairProxy.name = 'asset-proxy';
   box(chairProxy, [0.73, 0.12, 0.68], [0, 0.44, 0], m.fabric, 0.08);
   box(chairProxy, [0.73, 0.65, 0.12], [0, 0.79, 0.27], m.fabric, 0.07);
   for (const x of [-0.28, 0.28]) for (const z of [-0.26, 0.26]) rod(chairProxy, [x, 0, z], [x, 0.4, z], 0.022, m.oak);
-  const plantRoot = group(room, [2.54, 0.04, -1.66]), plantProxy = group(plantRoot);
+  const plantRoot = group(room, [2.54, 0.011, -1.66]), plantProxy = group(plantRoot);
+  plantProxy.name = 'asset-proxy';
   cylinder(plantProxy, 0.22, 0.17, 0.36, [0, 0.18, 0], m.white);
   for (let i = 0; i < 9; i++) {
     const a = i * 2.4;
     rod(plantProxy, [0, 0.3, 0], [Math.sin(a) * 0.3, 0.72 + (i % 3) * 0.18, Math.cos(a) * 0.3], 0.007, material('#4c6550'));
     const leaf = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), material('#526f4e')); leaf.scale.set(0.10, 0.24, 0.028); leaf.position.set(Math.sin(a) * 0.28, 0.75 + (i % 3) * 0.18, Math.cos(a) * 0.28); leaf.rotation.set(0.4, a, 0.6); plantProxy.add(leaf);
   }
+  addOfficeDetails(owner, room, m, { box, cylinder, rod, group, canvasTexture, material });
+  batchStaticGeometry(room);
   owner.essentialAssets = loadWood(owner, m);
   owner.decorativeAssets = owner.essentialAssets.then(() => owner.destroyed ? [] : Promise.allSettled([
     loadModel(owner, 'modern_arm_chair_01', chairRoot, chairProxy, 1.05, Math.PI),
@@ -243,8 +248,10 @@ function createEnclosure(owner, room, m) {
     ctx.fillStyle = '#c4c5b8'; ctx.font = '26px sans-serif'; ctx.fillText('THE OFFICE / 01', w / 2, 164);
   }, 512, 256) }));
   nameplate.position.set(0.55, 2.05, 2.526); room.add(nameplate);
+  owner.registerClickable(nameplate, { type: 'navigate', href: '/', label: 'Home · the entrance' });
+  owner.registerClickable(door, { type: 'navigate', href: '/', label: 'Home · return to the hallway' });
   // Soft ceiling light keeps the enclosed interior readable without brightening windows.
-  for (const [x, z] of [[0, -0.4], [0, 3.45]]) {
+  for (const [x, z] of [[0, 3.45]]) {
     box(room, [1.3, 0.025, 0.12], [x, 3.075, z], material('#fff4d9', { emissive: '#fff1d7', emissiveIntensity: 1 }));
     const light = new THREE.PointLight('#ffecd1', z > 2 ? 10 : 16, 9, 2);
     light.position.set(x, 2.88, z); room.add(light);
@@ -317,7 +324,7 @@ async function loadWood(owner, m) {
     texture.repeat.set(3, 2); texture.anisotropy = Math.min(4, owner.renderer.capabilities.getMaxAnisotropy());
     if (i === 0) texture.colorSpace = THREE.SRGBColorSpace;
     m.floor[names[i]] = texture; m.floor.needsUpdate = true;
-    const deskTexture = texture.clone(); deskTexture.repeat.set(0.75, 0.4); deskTexture.needsUpdate = true;
+    const deskTexture = texture.clone(); deskTexture.repeat.set(1.2, 1.2); deskTexture.needsUpdate = true;
     m.oak[names[i]] = deskTexture; m.oak.needsUpdate = true;
   });
   m.floor.normalScale.set(0.35, 0.35); m.oak.normalScale.set(0.22, 0.22); owner.invalidate();
@@ -348,4 +355,38 @@ export function disposeObject(root) {
     }
   });
   geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); textures.forEach(t => t.dispose());
+}
+
+// Keep independently interactive objects intact; consolidate architectural detail
+// into a few draws, with exactly the same world-space geometry and raycast surface.
+function batchStaticGeometry(room) {
+  room.updateMatrixWorld(true);
+  const batches = new Map();
+  room.traverse(mesh => {
+    if (!mesh.isMesh || mesh.isInstancedMesh || Array.isArray(mesh.material) || mesh.material.transparent) return;
+    let parent = mesh;
+    while (parent && parent !== room) {
+      if (parent.userData.action || parent.name === 'ceiling-fan' || parent.name === 'asset-proxy') return;
+      parent = parent.parent;
+    }
+    const key = `${mesh.material.uuid}/${mesh.castShadow}/${mesh.receiveShadow}`;
+    if (!batches.has(key)) batches.set(key, []);
+    batches.get(key).push(mesh);
+  });
+  for (const meshes of batches.values()) {
+    if (meshes.length < 2) continue;
+    const geometries = meshes.map(mesh => {
+      const geometry = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone();
+      geometry.applyMatrix4(mesh.matrixWorld);
+      // Imported tangents and vertex colors aren't present on these primitives.
+      return geometry;
+    });
+    const merged = mergeGeometries(geometries);
+    geometries.forEach(geometry => geometry.dispose());
+    if (!merged) continue;
+    const batch = new THREE.Mesh(merged, meshes[0].material);
+    batch.castShadow = meshes[0].castShadow; batch.receiveShadow = meshes[0].receiveShadow;
+    room.add(batch);
+    meshes.forEach(mesh => { mesh.removeFromParent(); mesh.geometry.dispose(); });
+  }
 }

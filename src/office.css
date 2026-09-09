@@ -112,3 +112,32 @@ body.panel-open .motion-control { right: auto; left: 24px; bottom: 24px; }
   body.panel-open .motion-control { left: auto; right: 12px; bottom: calc(55dvh + 10px); }
 }
 @media(prefers-reduced-motion: reduce) { .study-canvas { transition: none; } }
+
+/* The working room has no page chrome. Static HTML retains its ordinary directory. */
+.scene-ready { --header-height: 0px; }
+.scene-ready .site-header, .scene-ready .home-direct, .scene-ready .panel-back { display: none; }
+.scene-ready:not([data-route=home]) .panel-close { position: sticky; top: 0; display: grid; place-items: center; margin: 0 0 8px auto; padding: 0; width: 44px; height: 44px; min-height: 44px; border: 1px solid #d7d8ce; border-radius: 50%; font-size: 27px; line-height: 1; background: #f5f5ee; text-align: center; }
+.room-list-trigger { display: none; }
+.scene-ready .room-list-trigger { display: block; position: fixed; top: 18px; right: 20px; z-index: 7; border: 1px solid #d8ded4; border-radius: 30px; padding: 12px 18px; min-height: 44px; color: #30443c; background: #f4f4edf2; font: inherit; font-size: 12px; box-shadow: 0 3px 18px #132a2020; }
+.panel-open .room-list-trigger { display: none; }
+.room-objects { width: min(430px, calc(100% - 28px)); max-height: 85dvh; overflow: auto; border: 1px solid #c8d0c5; border-radius: 18px; padding: 22px; color: #30443c; background: #f4f4ed; box-shadow: 0 25px 80px #102c2340; }
+.room-objects::backdrop { background: #152b2470; }
+.room-objects .dialog-header { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.room-objects h2 { font-size: 24px; margin: 0; }
+.room-objects p { font-size: 12px; color: #687268; }
+.room-objects [data-room-list-close] { width: 44px; height: 44px; border-radius: 50%; border: 1px solid #c8d0c5; background: transparent; font-size: 26px; }
+.room-object-links { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 18px; }
+.room-object-links a, .room-object-links button { display: block; padding: 13px; border: 1px solid #d5d9ce; border-radius: 9px; background: #eeefe6; text-align: left; color: #314639; font: inherit; font-size: 13px; text-decoration: none; }
+.room-object-links span { display: block; font-size: 10px; color: #74816d; margin-top: 4px; }
+.room-object-links :is(a,button):hover { background: #e0e6d5; }
+.scene-ready .office-toolbar [data-office-walk] { display: none; }
+.scene-ready .object-controls:has(button:not([hidden])) { border-left: 0; padding-left: 0; }
+.scene-ready .office-caption { max-width: calc(100vw - 175px); }
+@media(max-width:700px) {
+  .scene-ready .office-caption { top: 18px; }
+  .office-caption > span:last-child, .caption-divider { display: none; }
+  .scene-ready .room-list-trigger { right: 12px; top: 12px; padding: 10px 14px; }
+  .scene-ready:not([data-route=home]) .panel-close { margin-bottom: 4px; }
+}
+
+.contact-dialog .dialog-close { min-width: 44px; min-height: 44px; font-size: 23px; border-radius: 50%; }

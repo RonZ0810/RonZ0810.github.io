@@ -1,0 +1,16 @@
+{
+  "source": "src/office-details.js",
+  "authorship": "Original procedural geometry and canvas artwork created for this portfolio",
+  "license": "Repository license; not part of the third-party CC0 asset collection",
+  "runtimeNetworkRequests": false,
+  "textures": {
+    "desktop": "Windows 11 style illustrative desktop, 1920x1080 desktop / 1024x576 mobile",
+    "surfaces": "Seeded plaster, fabric relief, garden ground, filtered insect screen, printed key legends and business card"
+  },
+  "thirdPartyMarks": {
+    "Microsoft": "Windows and Visual Studio Code names and illustrated motifs",
+    "OpenAI": "OpenAI name and illustrated motif",
+    "Google": "Google Chrome name and illustrated motif"
+  },
+  "notes": "No OS screenshot, interactive OS, live clock, or third-party endorsement."
+}

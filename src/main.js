@@ -14,6 +14,8 @@ function setSceneStatus(message, state = 'loading') { if (statusElement) { statu
 function syncOfficeControls(state) {
   document.body.classList.toggle('is-inspecting', state.inspecting);
   document.body.classList.toggle('has-entered', state.exploring);
+  document.querySelectorAll('[data-object-action=fan]').forEach(el => el.setAttribute('aria-pressed', String(state.fanOn)));
+  document.querySelectorAll('[data-object-action=ceiling]').forEach(el => el.setAttribute('aria-pressed', String(state.ceilingOn)));
   document.querySelector('[data-office-lamp]')?.setAttribute('aria-pressed', String(state.lampOn));
   document.querySelector('[data-office-notebook]')?.setAttribute('aria-pressed', String(state.notebookOpen));
   document.querySelector('[data-office-inspect]')?.setAttribute('aria-pressed', String(state.inspecting));
@@ -45,11 +47,15 @@ function setDetails(button) {
   });
   button.setAttribute('aria-expanded', String(!wasOpen)); target.classList.toggle('is-open', !wasOpen);
 }
+function closeObjectList(focus = true) {
+  document.getElementById('room-objects')?.close(); studyScene?.setPanelOpen(readingOpen);
+  if (focus) sceneContainer?.focus({ preventScroll: true });
+}
 function openContactDialog() {
   studyScene?.setPanelOpen(true);
   const dialog = document.getElementById('contact-dialog'); dialog?.showModal(); dialog?.querySelector('[data-contact-close]')?.focus();
 }
-function closeContactDialog() { document.getElementById('contact-dialog')?.close(); studyScene?.setPanelOpen(readingOpen); }
+function closeContactDialog() { document.getElementById('contact-dialog')?.close(); studyScene?.setPanelOpen(readingOpen); if (!readingOpen) sceneContainer?.focus({preventScroll:true}); }
 function isInternalRouteLink(anchor, event) {
   if (!studyScene || studyScene.contextLost || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return false;
   return anchor.matches('[data-route]') && !anchor.target && !anchor.hasAttribute('download') && new URL(anchor.href, location.href).origin === location.origin;
@@ -66,7 +72,7 @@ function replaceRouteElement(id, nextDocument) {
 async function navigate(destination, { historyMode = 'push' } = {}) {
   const targetUrl = new URL(destination, location.href);
   if (!studyScene || studyScene.contextLost) { location.assign(targetUrl.href); return; }
-  navigationController?.abort(); studyScene.cancelTravel();
+  closeObjectList(false); navigationController?.abort(); studyScene.cancelTravel();
   document.body.classList.remove('is-navigating');
   if (historyMode === 'push' && targetUrl.pathname === location.pathname) {
     studyScene.transitionTo(sceneKeyFromDocument()); setReading(document.body.dataset.route !== 'home'); return;
@@ -99,6 +105,10 @@ function showFallback() {
 document.addEventListener('click', event => {
   const target = event.target;
   if (studyScene && !studyScene.contextLost) {
+    if (target.closest('[data-room-list]')) { studyScene.setPanelOpen(true); const dialog=document.getElementById('room-objects'); dialog.showModal(); dialog.querySelector('[data-room-list-close]').focus(); return; }
+    if (target.closest('[data-room-list-close]')) { closeObjectList(); return; }
+    const objectAction = target.closest('[data-object-action]');
+    if (objectAction) { closeObjectList(false); setReading(false); studyScene.objectAction(objectAction.dataset.objectAction); return; }
     if (target.closest('[data-office-enter]')) { setReading(false); studyScene.enterOffice(); return; }
     if (target.closest('[data-panel-close], [data-office-walk]')) { setReading(false); return; }
     if (target.closest('[data-office-read]')) { setReading(true); return; }
@@ -120,7 +130,8 @@ document.addEventListener('click', event => {
 });
 document.addEventListener('keydown', event => {
   if (event.key !== 'Escape') return;
-  if (document.getElementById('contact-dialog')?.open) closeContactDialog();
+  if (document.getElementById('room-objects')?.open) { event.preventDefault(); closeObjectList(); }
+  else if (document.getElementById('contact-dialog')?.open) { event.preventDefault(); closeContactDialog(); }
   else if (studyScene?.inspecting) studyScene.exitInspection();
   else if (readingOpen) setReading(false);
 });
@@ -133,7 +144,7 @@ async function initialiseScene() {
   try {
     const { StudyScene } = await import('./scene.js');
     studyScene = new StudyScene(sceneContainer, {
-      reducedMotion: motionPreference, onHotspot: href => navigate(href), onState: syncOfficeControls,
+      reducedMotion: motionPreference, onContact: openContactDialog, onHotspot: href => navigate(href), onState: syncOfficeControls,
       onTransitionState: moving => motionControl?.classList.toggle('is-visible', moving),
       onNotice: message => { if (announcer) announcer.textContent = message; },
       onFailure: restored => { if (restored) { studyScene?.destroy(); studyScene = null; initialiseScene(); } else showFallback(); },
