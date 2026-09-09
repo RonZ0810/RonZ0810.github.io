@@ -19,4 +19,8 @@ Transfers include the essential scene, full decorative models, sampled route req
 
 ## Rendering resilience
 
-The full Chromium headless mode replaced the older headless shell, which stalled continuous WebGL input on this host. CI remains single-worker in the pinned Playwright container. Static meshes are batched by material. Software GPU backends use a 0.65 pixel ratio, 256px shadows and a 12 fps fan-only cap; hardware fan-only rendering is capped at 30 fps. Hidden tabs, blurred windows, stopped fans and offscreen fans do not keep unnecessary rendering active.
+Windows uses full Chromium headless mode; Linux CI retains its previously working bundled headless shell. CI remains single-worker in the pinned Playwright container. Static meshes are batched by material. Software GPU backends use a maximum 0.65 pixel ratio, a 150,000-pixel framebuffer budget, 256px shadows and a 12 fps fan-only cap; hardware fan-only rendering is capped at 30 fps. Hidden tabs, blurred windows, stopped fans and offscreen fans do not keep unnecessary rendering active.
+
+The first hosted run was stopped after its partial logs showed desktop software-GPU timeouts. The software framebuffer budget and platform-specific browser selection address the measured fill-rate cost; hardware-rendered visuals and test deadlines are unchanged.
+
+After the software-rendering correction, the complete local suite passed again (37 browser tests in 1.7 minutes and all 5 unit tests).

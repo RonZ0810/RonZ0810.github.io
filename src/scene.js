@@ -240,7 +240,8 @@ export class StudyScene {
   resize() {
     if (this.destroyed) return;
     this.camera.aspect = Math.max(1, this.container.clientWidth) / Math.max(1, this.container.clientHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.softwareRenderer ? .65 : this.mobile ? 1.25 : 1.5));
+    const softwareRatio = Math.min(.65, Math.sqrt(150_000 / Math.max(1, this.container.clientWidth * this.container.clientHeight)));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.softwareRenderer ? softwareRatio : this.mobile ? 1.25 : 1.5));
     this.renderer.setSize(this.container.clientWidth, this.container.clientHeight, false); this.camera.updateProjectionMatrix(); this.invalidate();
   }
   updateHotspots() {

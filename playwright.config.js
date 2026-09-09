@@ -11,7 +11,9 @@ export default defineConfig({
   expect: { timeout: process.env.CI ? 15_000 : 5_000 },
   reporter: [['list']],
   use: {
-    channel: 'chromium',
+    // Windows' full Chromium uses its graphics backend reliably; retain the
+    // established bundled headless shell on Linux's software-rendered runner.
+    channel: process.platform === 'win32' ? 'chromium' : undefined,
     baseURL: 'http://127.0.0.1:4174',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
