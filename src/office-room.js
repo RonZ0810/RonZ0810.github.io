@@ -71,14 +71,14 @@ export function createOffice(owner) {
   envScene.dispose(); pmrem.dispose();
   owner.scene.add(new THREE.HemisphereLight('#edf3fb', '#b4a18b', 1.15));
   const sun = new THREE.DirectionalLight('#fff1d7', 3.4);
-  sun.position.set(-3.8, 7, 1.8); sun.target.position.set(0, 0, -0.2); sun.castShadow = true;
+  sun.position.set(-8, 5.5, -1.5); sun.target.position.set(0, 0, -0.2); sun.castShadow = true;
   sun.shadow.mapSize.set(owner.mobile ? 512 : 1024, owner.mobile ? 512 : 1024);
   Object.assign(sun.shadow.camera, { left: -5, right: 5, top: 5, bottom: -5, near: 0.5, far: 20 });
   sun.shadow.normalBias = 0.035; sun.shadow.bias = -0.00012; sun.shadow.radius = 1.5;
   owner.scene.add(sun, sun.target); owner.sun = sun;
   const fill = new THREE.DirectionalLight('#dae7f3', 0.65); fill.position.set(5, 3, 5); owner.scene.add(fill);
 
-  // Human-scale architecture: 6.8 × 4.8 metres, open ceiling and front.
+  // Human-scale architecture: enclosed office and a hallway at the entrance.
   box(room, [6.9, 0.16, 4.95], [0, -0.14, 0], material('#706b61'), 0.04);
   box(room, [6.8, 0.07, 4.8], [0, -0.025, 0], m.floor);
   const back = group(room), left = group(room);
@@ -94,10 +94,8 @@ export function createOffice(owner) {
   box(left, [0.34, 0.065, 3.86], [-3.31, 0.54, -0.02], m.white.clone());
   const glass = new THREE.MeshPhysicalMaterial({ color: '#dce9ec', transparent: true, opacity: 0.15, roughness: 0.16, metalness: 0.05, depthWrite: false });
   box(left, [0.025, 2.2, 3.54], [-3.46, 1.67, -0.02], glass, 0);
-  owner.walls = [{ group: back, axis: 'z', threshold: -2.4 }, { group: left, axis: 'x', threshold: -3.4 }];
-  for (const wall of owner.walls) wall.group.traverse(obj => {
-    if (obj.isMesh) { obj.material = obj.material.clone(); obj.userData.originalOpacity = obj.material.opacity; obj.material.transparent = true; }
-  });
+  createEnclosure(owner, room, m);
+  const garden = createGarden(owner, m);
   box(room, [3.5, 0.018, 2.8], [-0.35, 0.024, 0.35], m.fabric, 0.045);
   const contactMap = canvasTexture((ctx, w, h) => {
     const grad = ctx.createRadialGradient(w / 2, h / 2, 4, w / 2, h / 2, w / 2);
@@ -178,12 +176,12 @@ export function createOffice(owner) {
   const art = group(back, [0.12, 1.88, -2.32]);
   box(art, [1.02, 1.2, 0.045], [0, 0, 0], m.dark);
   const artwork = new THREE.Mesh(new THREE.PlaneGeometry(0.93, 1.11), material('#ffffff', { map: printTexture('art') })); artwork.position.z = 0.026; art.add(artwork);
-  const consoleTable = group(room, [2.4, 0, 0.24]);
+  const consoleTable = group(room, [2.65, 0, 0.24]);
   box(consoleTable, [1.32, 0.065, 0.7], [0, 0.83, 0], m.oak, 0.025);
   for (const x of [-0.56, 0.56]) for (const z of [-0.25, 0.25]) rod(consoleTable, [x, 0.03, z], [x, 0.8, z], 0.023, m.dark);
   box(consoleTable, [1.18, 0.035, 0.56], [0, 0.21, 0], m.oak);
   for (let i = 0; i < 3; i++) box(consoleTable, [0.42, 0.046, 0.32], [-0.27, 0.26 + i * 0.048, 0], material(colors[i]));
-  const cameraGroup = group(room, [2.38, 0.87, 0.36]); cameraGroup.rotation.y = 0.3;
+  const cameraGroup = group(room, [2.63, 0.87, 0.36]); cameraGroup.rotation.y = 0.3;
   const cameraProxy = group(cameraGroup);
   box(cameraProxy, [0.26, 0.17, 0.1], [0, 0.09, 0], m.dark);
   cylinder(cameraProxy, 0.06, 0.06, 0.12, [0, 0.09, 0.08], m.dark).rotation.x = Math.PI / 2;
@@ -210,11 +208,103 @@ export function createOffice(owner) {
     loadModel(owner, 'modern_arm_chair_01', chairRoot, chairProxy, 1.05, Math.PI),
     loadModel(owner, 'Camera_01', cameraGroup, cameraProxy, 0.22, 0),
     loadModel(owner, 'potted_plant_01', plantRoot, plantProxy, 1.45, 0),
+    loadGardenShrubs(owner, garden),
   ])).then(results => {
     if (owner.destroyed) return;
     owner.container.dataset.assets = results.every(result => result.status === 'fulfilled') && !owner.assetFailure ? 'ready' : 'partial'; owner.invalidate();
   });
   return room;
+}
+function createEnclosure(owner, room, m) {
+  const wall = m.white;
+  box(room, [0.12, 3.1, 4.9], [3.44, 1.55, 0], wall);
+  box(room, [4.15, 3.1, 0.18], [-1.325, 1.55, 2.41], wall);
+  box(room, [1.35, 3.1, 0.18], [2.725, 1.55, 2.41], wall);
+  box(room, [1.3, 0.75, 0.18], [1.4, 2.725, 2.41], wall);
+  box(room, [6.9, 0.14, 6.96], [0, 3.17, 1], wall);
+  const hallwayFloor = material('#c7c3b8', { roughness: 0.65 });
+  box(room, [6.9, 0.08, 2.04], [0, -0.03, 3.46], hallwayFloor);
+  box(room, [6.9, 3.1, 0.14], [0, 1.55, 4.45], wall);
+  for (const x of [-3.44, 3.44]) {
+    box(room, [0.12, 3.1, 2.08], [x, 1.55, 3.46], wall);
+    box(room, [0.035, 0.09, 6.8], [x * 0.975, 0.07, 1], wall);
+  }
+  for (const [x, width] of [[-1.325, 4.15], [2.725, 1.35]]) {
+    for (const z of [2.29, 2.53]) box(room, [width, 0.09, 0.035], [x, 0.07, z], wall);
+  }
+  for (const x of [0.70, 2.10]) box(room, [0.09, 2.42, 0.25], [x, 1.21, 2.41], m.oak);
+  box(room, [1.49, 0.085, 0.25], [1.4, 2.39, 2.41], m.oak);
+  const door = box(room, [0.055, 2.32, 1.16], [2.085, 1.17, 3.08], m.oak, 0.012);
+  cylinder(door, 0.027, 0.027, 0.13, [-0.09, -0.11, 0.43], m.metal).rotation.z = Math.PI / 2;
+  box(room, [0.3, 0.2, 0.016], [0.55, 2.05, 2.514], m.dark);
+  const nameplate = new THREE.Mesh(new THREE.PlaneGeometry(0.28, 0.18), material('#ffffff', { map: canvasTexture((ctx, w, h) => {
+    ctx.fillStyle = '#333e38'; ctx.fillRect(0, 0, w, h); ctx.fillStyle = '#eee9dc';
+    ctx.textAlign = 'center'; ctx.font = '60px sans-serif'; ctx.fillText('RONALD', w / 2, 103);
+    ctx.fillStyle = '#c4c5b8'; ctx.font = '26px sans-serif'; ctx.fillText('THE OFFICE / 01', w / 2, 164);
+  }, 512, 256) }));
+  nameplate.position.set(0.55, 2.05, 2.526); room.add(nameplate);
+  // Soft ceiling light keeps the enclosed interior readable without brightening windows.
+  for (const [x, z] of [[0, -0.4], [0, 3.45]]) {
+    box(room, [1.3, 0.025, 0.12], [x, 3.075, z], material('#fff4d9', { emissive: '#fff1d7', emissiveIntensity: 1 }));
+    const light = new THREE.PointLight('#ffecd1', z > 2 ? 10 : 16, 9, 2);
+    light.position.set(x, 2.88, z); room.add(light);
+  }
+  // A quiet hallway print provides detail when the visitor turns around.
+  const hallPrint = group(room, [-0.4, 1.72, 4.35]); hallPrint.rotation.y = Math.PI;
+  box(hallPrint, [0.9, 1.1, 0.035], [0, 0, 0], m.oak);
+  const print = new THREE.Mesh(new THREE.PlaneGeometry(0.82, 1.02), material('#ffffff', { map: printTexture('art') })); print.position.z = 0.024; hallPrint.add(print);
+}
+function createGarden(owner, m) {
+  const garden = group(owner.scene); garden.name = 'window-garden';
+  owner.scene.background = new THREE.Color('#d6e5ed'); owner.scene.fog = new THREE.Fog('#d6e5ed', 18, 48);
+  box(garden, [28, 0.08, 36], [-17.6, -0.12, 0], material('#779260', { roughness: 1 }), 0);
+  box(garden, [1.4, 0.025, 16], [-4.45, -0.035, 0], material('#b8b7a7'), 0);
+  for (let z = -8; z <= 8; z += 0.8) box(garden, [1.43, 0.003, 0.012], [-4.45, -0.019, z], material('#95958b'), 0);
+  const hedge = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 10, 7), material('#4d6c47'), 54);
+  for (let i = 0; i < 54; i++) {
+    const matrix = new THREE.Matrix4().compose(new THREE.Vector3(-14 + Math.sin(i * 3) * 0.23, 0.47 + (i % 3) * 0.11, -14 + Math.floor(i / 3) * 1.6 + (i % 3 - 1) * 0.48), new THREE.Quaternion(), new THREE.Vector3(0.8, 0.62, 0.84));
+    hedge.setMatrixAt(i, matrix);
+  }
+  garden.add(hedge);
+  let seed = 81;
+  const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+  const leafGeometry = new THREE.SphereGeometry(1, 8, 5), leafMaterial = material('#5a7947', { roughness: 0.95 });
+  const matrix = new THREE.Matrix4(), quat = new THREE.Quaternion(), position = new THREE.Vector3(), scale = new THREE.Vector3();
+  for (const [x, z, height] of [[-8, -3.2, 5.6], [-10.5, 3, 6.5], [-7.2, 6.8, 5.2], [-11.8, -8, 6.2]]) {
+    const tree = group(garden, [x, 0, z]);
+    cylinder(tree, 0.065, 0.18, height * 0.65, [0, height * 0.325, 0], material('#655344'));
+    for (let k = 0; k < 7; k++) {
+      const angle = k * 2.4;
+      rod(tree, [0, height * 0.3, 0], [Math.sin(angle) * 1.15, height * (0.6 + k * 0.035), Math.cos(angle) * 1.15], 0.04, m.oak);
+    }
+    const leaves = new THREE.InstancedMesh(leafGeometry, leafMaterial, 650);
+    for (let i = 0; i < 650; i++) {
+      const theta = random() * Math.PI * 2, y = random() * 2 - 1, radius = Math.cbrt(random());
+      const ring = Math.sqrt(1 - y * y);
+      position.set(Math.cos(theta) * ring * radius * 1.85, height * 0.7 + y * radius * 1.55, Math.sin(theta) * ring * radius * 1.85);
+      quat.setFromEuler(new THREE.Euler(random() * 3, random() * 6, random() * 3));
+      scale.set(0.15 + random() * 0.13, 0.04, 0.09 + random() * 0.1);
+      matrix.compose(position, quat, scale); leaves.setMatrixAt(i, matrix);
+      leaves.setColorAt(i, new THREE.Color().setHSL(0.22 + random() * 0.09, 0.25 + random() * 0.2, 0.25 + random() * 0.15));
+    }
+    tree.add(leaves);
+  }
+  return garden;
+}
+async function loadGardenShrubs(owner, garden) {
+  const holder = group(garden, [-5.8, 0, -0.5]), proxy = group(holder);
+  await loadModel(owner, 'shrub_01', holder, proxy, 1.35, 0);
+  if (owner.destroyed) return;
+  const keepOutside = object => {
+    object.updateWorldMatrix(true, true);
+    const edge = new THREE.Box3().setFromObject(object).max.x;
+    if (edge > -3.85) object.position.x -= edge + 3.85;
+  };
+  keepOutside(holder);
+  for (const [x, z, scale] of [[-6.2, 2.4, 0.8], [-5.6, -3.9, 1.1], [-9.6, 0.5, 1.4]]) {
+    const shrub = holder.clone(); shrub.position.set(x, 0, z); shrub.scale.setScalar(scale); garden.add(shrub); keepOutside(shrub);
+  }
+  owner.invalidate(true);
 }
 async function loadWood(owner, m) {
   const tier = owner.mobile ? '1k' : '2k', loader = new THREE.TextureLoader();

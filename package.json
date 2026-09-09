@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "npm run build && playwright test",
+    "test": "npm run test:unit && npm run build && playwright test",
+    "test:unit": "node --test tests/walking.test.mjs",
     "test:e2e": "playwright test"
   },
   "repository": {

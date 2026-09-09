@@ -21,7 +21,7 @@ async function download(file, relative, outputRoot = root) {
   await writeFile(destination, bytes);
   return { path: relative, source: file.url, bytes: bytes.length, md5: file.md5 };
 }
-for (const id of ['modern_arm_chair_01', 'Camera_01', 'potted_plant_01']) {
+for (const id of ['modern_arm_chair_01', 'Camera_01', 'potted_plant_01', 'shrub_01']) {
   const files = await json(`https://api.polyhaven.com/files/${id}`);
   const model = files.gltf['1k'].gltf;
   const entries = await Promise.all([

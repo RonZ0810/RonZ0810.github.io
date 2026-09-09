@@ -1,39 +1,44 @@
-# Interactive office
+# First-person office
 
-Run `npm run dev` for the local preview, `npm run build` for GitHub Pages output, and `npm test -- --workers=1` for the full Playwright suite. There is no backend and the deployed site makes no third-party asset requests.
+Run `npm run dev` for the local preview and `npm run build` for GitHub Pages output. `npm test -- --workers=1` runs ground-navigation unit tests, builds the site, and runs the browser suite. The published site uses local assets and has no backend.
 
-CI uses one Playwright worker because hosted runners render WebGL in software. Asynchronous assertions have a 15-second CI timeout; the 60-second per-test limit and all behavioral checks remain in place. Failed runs upload browser traces, screenshots, and error context as the `playwright-failures` artifact.
+CI uses one browser worker for software WebGL rendering, 15-second asynchronous assertions, and a 60-second per-test limit. Failed runs upload traces, screenshots, and error context as `playwright-failures`.
 
-## Controls
+## Explore
 
-- Drag to orbit; touch users drag horizontally and scroll vertically.
-- Focus the room and use arrow keys to rotate, `+` / `-` to zoom, or `Home` to reset.
-- Select the notebook, monitor, framed timeline, school books, or camera to open a portfolio section.
-- The toolbar controls the lamp and notebook. Select Sculpture to inspect and rotate it independently; Done or Escape returns to room controls.
-- Motion disables camera travel, damping, and object animations. The system reduced-motion setting is honored by default. Object states survive enhanced route navigation; a fresh page load resets them.
-- The header remains visible while reading. Desktop sculpture inspection uses the full scene area and temporarily hides the welcome text. Camera travel completes when the room scrolls offscreen, keeping the reading view free of stale motion controls.
+Home starts in the hallway facing the open office door. Enter office walks to the interior landing without changing the URL. The Home navigation link walks back outside, including when already on `/`.
 
-## Implementation
+- Focus the scene and use WASD to walk or strafe. Drag or use arrow keys to look.
+- On phones, the left thumbstick moves and dragging the scene turns the view.
+- Select an object or navigation link to walk to its standing viewpoint and read its section.
+- Close the side panel or bottom sheet to resume walking. Read section reopens it without changing the URL or position.
+- Lamp and Notebook controls walk to the desk when needed. Sculpture brings the object in front of the visitor for independent rotation. Done or Escape puts it back.
+- Motion disables automatic travel and object animation; destinations remain valid standing locations. Deliberate walking and looking still work.
+- Blur and hidden tabs clear held inputs and pause movement. Object states survive route navigation.
 
-`src/office-room.js` builds the architecture, materials, lighting, and actionable props. It loads local models after the essential wood maps settle. `src/scene.js` owns interaction, camera transitions, wall fading, and resource cleanup; `src/scene-routes.js` supplies route camera presets. `src/main.js` retains the static-route navigation and accessible HTML controls.
+## Architecture
 
-The renderer is event driven: it stops when settled, offscreen, or in a hidden tab. Static shadows are cached; asset replacement and relevant object changes refresh them. Desktop wood color uses 2K, while mobile color and all normal/roughness maps use 1K. Models have 1K textures on every device.
+`src/walking.js` supplies a 0.2-metre A* grid with obstacles inflated by a 0.25-metre player radius. Segment validation smooths only clear paths, and substepped sliding prevents manual motion tunneling through walls or furniture. Colliders are explicit and independent of asynchronous model loading.
 
-## Assets and recovery
+`src/scene-routes.js` defines standing positions and viewing targets. `src/scene.js` owns first-person control at a constant 1.65-metre eye height and 60-degree vertical field of view. There is no camera orbit, roll, wall fading, or third-person transition.
 
-Source URLs and checksums are in `public/office/sources.json`, with license notes in `CREDITS.md`. To regenerate the optimized models:
+`src/office-room.js` builds the enclosed office, hallway, ceiling, lighting, and garden. The garden is scenery, outside the walkable boundary. Shared instanced foliage and local shrub models provide parallax through the windows. Rendering stops when settled, blurred, or hidden; static shadows are cached. Model textures are 1K; desktop wood color is 2K.
+
+## Assets and fallback
+
+Sources, licenses, and download checksums are in `public/office/sources.json` and `CREDITS.md`. Rebuild optimized models with:
 
 ```powershell
 node scripts/fetch-office-assets.mjs
 powershell -File scripts/optimize-office-assets.ps1
 ```
 
-Downloads are verified and raw models are kept outside the published output in `.cache/office`. The optimization command pins glTF Transform 4.4.0, uses meshopt compression, retains source JPEG textures, and conservatively simplifies geometry.
+Raw downloads stay in `.cache/office`. glTF Transform 4.4.0 compresses geometry with meshopt and conservatively simplifies it while retaining source JPEG textures.
 
-Failed model downloads leave detailed procedural stand-ins. JavaScript or WebGL failure leaves a static room poster and normal HTML links. The screenshot test captures a fresh poster and desktop/mobile QA images under `test-results`; the shipped poster is `public/office/room-poster.png`.
+Failed models leave procedural stand-ins. Without JavaScript or WebGL, HTML content and links remain available with first-person posters. Browser tests save `hallway-poster.png`, `room-poster.png`, and desktop/mobile screenshots in `test-results`; reviewed posters are copied into `public/office` for shipping.
 
-The existing biography, project, school, and contact placeholders still need real portfolio content.
+## Verification
 
-## Visual and performance checks
+Unit tests check every destination pair, doorway clearance, obstacle sliding, and invalid paths. Browser tests check standing height, entry and Home return, manual input, travel cancellation, panels and history, held-object inspection, touch movement, and fallback behavior. Review the built-in browser at desktop, tablet, and narrow-phone widths, including upward ceiling views and the garden windows.
 
-Desktop QA uses a 1440 × 1000 viewport; mobile QA uses 390 × 844 with touch enabled. The recorded desktop sample measured a 16.7 ms median animation-frame interval after a keyboard orbit and 9.8 MB of transferred office assets, including the poster. This is a short local-browser sample, not a guarantee for every device or network. `tests/office.spec.js` writes the measurements and screenshots into `test-results` for inspection.
+Portfolio biography, project, school, and contact placeholders remain intentionally unfilled.
